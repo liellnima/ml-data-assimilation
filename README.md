@@ -188,7 +188,7 @@ These steps are for anyone cloning this project to set it up for development.
 
 2. **Install Dependencies:**
    This command installs all dependencies from `pyproject.toml` and locks them using
-   `uv.lock`. It also installs your local package (e.g., `src/core`) in
+   `uv.lock`. It also installs your local package (e.g., `src/ml-da`) in
    editable mode.
 
    ```bash
