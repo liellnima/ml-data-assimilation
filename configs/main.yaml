@@ -1,0 +1,19 @@
+# This main config file overwrites the other subconfigs
+experiment_name: default-run
+stage:
+  - generate
+  - run
+  - evaluate
+  - aggregate
+  - visualize
+configs:
+  - data: "data/default_data.yaml" # generates (or loads) data
+  - model: "models/default_models.yaml" # get models
+  - evaluation: "evaluation/default_evaluation.yaml" # evaluates models
+  - aggreggation: "aggregation/default_aggregation.yaml" # sweeps over runs
+  - visualization: "visualization/default_visualization.yaml" # visualizes results
+output:
+  run_dir: default-exp
+  overwrite: True
+
+  

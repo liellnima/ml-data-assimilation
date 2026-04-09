@@ -1,0 +1,8 @@
+name: lorenz96
+non_linearity: # mapped to external forcing parameter: lower values -> more stable
+  # at F < 4 the system is stable
+  low: 5
+  med: 8
+  hig: 10
+params:
+  # TODO add list of params
