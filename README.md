@@ -205,6 +205,9 @@ These steps are for anyone cloning this project to set it up for development.
 
 You are now ready to start development!
 
+If you're on Windows, use 'pip install uv' before doing step 1.
+Before activating the environment in step 1, run "Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned" in the terminal and then, call ".venv\\Scripts\\activate.ps1".
+
 ## 📖 Project Usage
 
 \<INSERT_YOUR_INSTRUCTIONS_HERE>
