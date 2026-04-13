@@ -6,3 +6,5 @@ CONFIGS_PATH = PROJECT_ROOT / "configs"
 DATA_DIR = PROJECT_ROOT / "data"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 OUTPUT_DIR = PROJECT_ROOT / "output"
+
+LOG_DIR = Path("./logs")
