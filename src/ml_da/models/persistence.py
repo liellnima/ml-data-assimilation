@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ml_da.models.model_base import BaseAssimilationModel
+from ml_da.models.base_model import BaseAssimilationModel
 
 
 class PersistenceModel(BaseAssimilationModel):

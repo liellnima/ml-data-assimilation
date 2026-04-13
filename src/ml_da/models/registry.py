@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from ml_da.models.base import BaseAssimilationModel
+from ml_da.models.base_model import BaseAssimilationModel
 from ml_da.models.persistence import PersistenceModel
 
 MODEL_REGISTRY: dict[str, Callable[..., BaseAssimilationModel]] = {
