@@ -1,4 +1,4 @@
-name: lorenz96
+name: Lorenz96 # needs to be spelled the exact same way like the class based on this
 non_linearity: # mapped to external forcing parameter: lower values -> more stable
   # at F < 4 the system is stable
   low: 5
