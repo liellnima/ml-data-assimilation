@@ -26,6 +26,10 @@ Other:
 
 --> 81 datasets
 
+- [] Separate between training and assimilation data
+- [] Provide Covariance + Jacobian
+- [] Provide Model Ensembles
+
 ## Task Setup
 
 - [] Interface between Data and Models
@@ -43,7 +47,7 @@ Other:
 
 ## Metrics
 
-- [] RMSE
+- [] RMSE / MAE
 - [] STD of RMSE across 3 runs
 - [] Inference time
 - [] Training time
