@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 def setup_logging(run_dir: Path, level: int = logging.INFO) -> None:
+    run_dir.mkdir(exist_ok=True)
     logger = logging.getLogger()
     logger.setLevel(level)
 

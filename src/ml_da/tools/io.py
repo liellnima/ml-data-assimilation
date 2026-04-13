@@ -6,6 +6,8 @@ from typing import Any
 import xarray as xr
 import yaml
 
+from ml_da.data.dataclasses import AssimDataBundle
+
 
 def load_yaml(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
@@ -21,29 +23,17 @@ def save_yaml(data: dict[str, Any], path: Path) -> None:
         yaml.safe_dump(data, f, sort_keys=False)
 
 
-def save_xr_dataset_zarr(
-    ds: xr.Dataset,
-    path: Path,
-    mode: str = "w",
-) -> None:
+def save_xr_dataset_zarr(ds: xr.Dataset, path: Path, mode: str = "w") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.to_zarr(path, mode=mode)
 
 
-def load_xr_dataset_zarr(
-    path: Path,
-    chunks: dict[str, int] | None = None,
-) -> xr.Dataset:
+def load_xr_dataset_zarr(path: Path, chunks: dict[str, int] | None = None) -> xr.Dataset:
     return xr.open_zarr(path, chunks=chunks)
 
 
-# TODO in case we want to use netcdf instead
-
-
-def save_xr_dataset_netcdf(
-    ds: xr.Dataset,
-    path: Path,
-) -> None:
+# in case we want to use netcdf instead
+def save_xr_dataset_netcdf(ds: xr.Dataset, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.to_netcdf(path)
 
@@ -52,4 +42,21 @@ def load_xr_dataset_netcdf(path: Path) -> xr.Dataset:
     return xr.open_dataset(path)
 
 
-# TODO continue here: add save and load data bundle and figure out the path management
+def save_data_bundle(bundle: AssimDataBundle, root: Path) -> None:
+    """Store data bundle at given path."""
+    root.mkdir(parents=True, exist_ok=True)
+
+    save_xr_dataset_zarr(bundle.truth, root / "truth.zarr")
+    save_xr_dataset_zarr(bundle.numerical_model, root / "numerical_model.zarr")
+    save_xr_dataset_zarr(bundle.observations, root / "observations.zarr")
+    save_yaml(bundle.metadata, root / "metadata.yaml")
+
+
+def load_data_bundle(root: Path, chunks: dict[str, int] | None = None) -> AssimDataBundle:
+    bundle = AssimDataBundle(
+        truth=load_xr_dataset_zarr(root / "truth.zarr", chunks=chunks),
+        numerical_model=load_xr_dataset_zarr(root / "numerical_model.zarr", chunks=chunks),
+        observations=load_xr_dataset_zarr(root / "observations.zarr", chunks=chunks),
+        metadata=load_yaml(root / "metadata.yaml"),
+    )
+    return bundle
