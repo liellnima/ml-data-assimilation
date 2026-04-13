@@ -1,8 +1,10 @@
+from typing import Any
+
 import dabench as dab
 import numpy as np
 
-from ml_da.data_generator.data_base import DataGenerator
-from ml_da.tools.config import DataConfig, SystemConfig
+from ml_da.data.generators.base_data_generator import DataGenerator
+from ml_da.tools.config import DataCoreConfig, SystemConfig
 
 # default values for 36 variables (the default in dabench):
 # final state of a 14400 timestep spinup startin with initial state of all 0s excep the first element which is set to 0.01.
@@ -53,7 +55,7 @@ DEFAULT_INITIAL_STATE_LORENZ96 = np.ndarray(
 class Lorenz96(DataGenerator):
     """Implementation of a DataGenerator for the Lorenz96 system from the DataAssimBench."""
 
-    def __init__(self, data_cfg: DataConfig, sys_cfg: SystemConfig):
+    def __init__(self, data_cfg: DataCoreConfig, sys_cfg: SystemConfig):
         super().__init__(data_cfg, sys_cfg)
 
     @property
@@ -73,16 +75,34 @@ class Lorenz96(DataGenerator):
         # returns the system object
         return l96_obj
 
-    def _create_initial_state(self, error_sd: float = 0) -> np.ndarray:
-        # TODO
-        # if error_sd is zero: return default values
-        # else: add noise according to noise + seed on the default values
-        # ideally: use the _add_noise function provided in this class for this
-        if error_sd == 0:
+    def _create_initial_state(
+        self,
+        error_type: str | None = None,
+        error_params: dict[str, Any] = {
+            "loc": 0.0,
+            "scale": 0.01,
+            "size": None,
+        },
+        seed: int | None = None,
+    ) -> np.ndarray:
+        """
+        Creates initial state needed to initialize a system. If error_type is None, it means that there is no noise that
+        should be added to the initial state, and the default initial state is returned.
+
+        Otherwise error / noise is added, representating a slightly perturbed system that can be used as 'synthetic
+        numerical model' and can even be used to create ensembles of such models.
+        """
+        # if we have zero params for the noise, it means we want no noise on our initial state
+        if error_type is None:
             return self.default_initial_state
 
-        # make the ndarray to a xr.DataSet??
-        # TODO
-        # CONTINUE HERE: who has the responsibility? should we use two different add_noise funcs?
+        # else we want to add a certain amount of noise to perturb our model
+        perturbed_initial_state = self._add_noise(
+            data=self.default_initial_state,
+            error_type=error_type,
+            error_params=error_params,
+            only_positive=self.mod_error_pos_only,
+            seed=seed,
+        )
 
-        raise NotImplementedError()
+        return perturbed_initial_state
