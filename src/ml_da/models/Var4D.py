@@ -6,7 +6,7 @@ class Var4D:
     4D-Var.
 
     nIters: Number of iterations
-    tol: Convergence threshold
+    tol: Convergence threshold/tolerance
     """
 
     nIters: int
