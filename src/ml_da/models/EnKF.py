@@ -8,7 +8,7 @@ class EnKF:
     """
     Ensemble Kalman Filter.
 
-    N: number of samples
+    N: number of samples (desired ensemble size)
     """
 
     N: int
