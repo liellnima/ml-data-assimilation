@@ -1,23 +1,37 @@
+from __future__ import annotations
+
 import logging
 from pathlib import Path
 
 
-def setup_logging(run_dir: Path, level: int = logging.INFO) -> None:
-    run_dir.mkdir(exist_ok=True)
-    logger = logging.getLogger()
-    logger.setLevel(level)
+def setup_logging(
+    log_dir: Path,
+    console_level: int = logging.INFO,
+    file_level: int = logging.DEBUG,
+) -> None:
+    log_dir.mkdir(exist_ok=True)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(file_level)
 
-    logger.handlers.clear()
+    root_logger.handlers.clear()
 
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # Console handler
     stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(console_level)
     stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
+    root_logger.addHandler(stream_handler)
 
-    file_handler = logging.FileHandler(run_dir / "run.log")
+    # File handler
+    file_handler = logging.FileHandler(log_dir / "run.log")
+    stream_handler.setLevel(file_level)
     file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
+    root_logger.addHandler(file_handler)
+
+    # Silence third parties
+    for lib in ["jax", "jaxlib", "dabench", "zarr"]:
+        logging.getLogger(lib).setLevel(logging.WARNING)

@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 import xarray as xr
 import yaml
 
 from ml_da.data.dataclasses import AssimDataBundle
+
+logger = logging.getLogger(__name__)
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -17,7 +20,7 @@ def load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def save_yaml(data: dict[str, Any], path: Path) -> None:
+def save_yaml(data: dict[str, Any] | List, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(data, f, sort_keys=False)
