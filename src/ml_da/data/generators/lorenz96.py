@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import logging
 from typing import Any
 
 import dabench as dab
@@ -5,12 +8,19 @@ import numpy as np
 
 from ml_da.data.generators.base_data_generator import DataGenerator
 from ml_da.tools.config import DataCoreConfig, SystemConfig
+from ml_da.tools.registry import data_generator
+
+for lib in ["jax", "jaxlib"]:
+    logging.getLogger(lib).setLevel(logging.WARNING)
+
+
+logger = logging.getLogger(__name__)
 
 # default values for 36 variables (the default in dabench):
 # final state of a 14400 timestep spinup startin with initial state of all 0s excep the first element which is set to 0.01.
 # values are for delta_t (the length of one time step = 0.05 (like the original))
 # TODO figure out if this belongs here or somewhere else
-DEFAULT_INITIAL_STATE_LORENZ96 = np.ndarray(
+DEFAULT_INITIAL_STATE_LORENZ96 = np.array(
     [
         0.90061724,
         2.2108543,
@@ -52,6 +62,7 @@ DEFAULT_INITIAL_STATE_LORENZ96 = np.ndarray(
 )
 
 
+@data_generator
 class Lorenz96(DataGenerator):
     """Implementation of a DataGenerator for the Lorenz96 system from the DataAssimBench."""
 

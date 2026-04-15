@@ -15,7 +15,7 @@ class AssimDataBundle:
     truth: xr.Dataset
     numerical_model: xr.Dataset
     observations: xr.Dataset
-    metadata: dict[str, Any]
+    metadata: dict[str, Any]  # TODO reference the config file in the metadata
     # TODO add sth to get "synthetic numerical model"? (not needed for ML methods)
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from typing import Any, Tuple
 
@@ -9,6 +10,14 @@ import xarray as xr
 
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.tools.config import DataCoreConfig, SystemConfig
+
+# I have this in the setup logger as well for outside packages,
+# but need to block it here already because jax is printing on debug level during imports
+for lib in ["jax", "jaxlib"]:
+    logging.getLogger(lib).setLevel(logging.WARNING)
+
+
+logger = logging.getLogger(__name__)
 
 
 class DataGenerator(ABC):
@@ -23,7 +32,7 @@ class DataGenerator(ABC):
         self.system_name = sys_cfg.name
         self.system_params = sys_cfg.params
         self.system_non_linearity_mapping = sys_cfg.non_linearity
-        self.chosen_non_linearity = data_cfg.model["non_linearity"]
+        self.chosen_non_linearity = data_cfg.system["non_linearity"]
         # synthetic model params
         self.mod_error_type = data_cfg.model["error_type"]
         self.mod_error_sd = data_cfg.model["error_sd"]
@@ -41,19 +50,71 @@ class DataGenerator(ABC):
 
     def get_id_name(self) -> str:
         """Returns a reasonable name, for example for a directory."""
-        relevant_params = [
-            self.timesteps,
-            self.system_name,
-            self.chosen_non_linearity,
-            self.mod_error_type,
-            self.mod_error_sd,
-            self.mod_init_conds_noise,
-            self.obs_density,
-            self.obs_error_type,
-            self.obs_error_sd,
-            self.seed,
+        seed_params = "-".join(
+            map(
+                str,
+                [
+                    "SEED",
+                    self.seed,
+                ],
+            )
+        )
+
+        time_params = "-".join(
+            map(
+                str,
+                [
+                    "TIME",
+                    self.timesteps,
+                ],
+            )
+        )
+
+        system_params = "-".join(
+            map(
+                str,
+                [
+                    "SYSTEM",
+                    self.system_name,
+                    self.chosen_non_linearity,
+                ],
+            )
+        )
+
+        model_params = "-".join(
+            map(
+                str,
+                [
+                    "MODEL",
+                    self.mod_error_type,
+                    self.mod_error_sd,
+                    self.mod_init_conds_noise["error_type"],
+                    self.mod_init_conds_noise["error_params"]["scale"],
+                ],
+            )
+        )
+
+        obs_params = "-".join(
+            map(
+                str,
+                [
+                    "OBS",
+                    self.obs_density,
+                    self.obs_error_type,
+                    self.obs_error_sd,
+                ],
+            )
+        )
+
+        all_relevant_params = [
+            seed_params,
+            time_params,
+            system_params,
+            model_params,
+            obs_params,
         ]
-        return "_".join(map(str, relevant_params))
+
+        return "_".join(all_relevant_params)
 
     @property
     @abstractmethod
@@ -95,7 +156,7 @@ class DataGenerator(ABC):
         Returns:
             AssimDataBundle: Contains `truth`, `model`, `observations`, and `metadata`.
         """
-        if self.system is None:
+        if self.system_name is None:
             raise ValueError("Underlying system for the data generation has not been initialized.")
 
         # Ground Truth: The System's Data
@@ -110,7 +171,7 @@ class DataGenerator(ABC):
         # return generated data
         return AssimDataBundle(
             truth=ground_truth,
-            model=model_data,
+            numerical_model=model_data,
             observations=observations,
             metadata=self.__dict__,
         )
@@ -192,7 +253,8 @@ class DataGenerator(ABC):
         func = getattr(rng, error_type)
 
         # generate the noise data (np.array)
-        noise = func(**error_params, size=error_shape)
+        error_params["size"] = error_shape
+        noise = func(**error_params)
 
         # make sure errors are only positive if needed
         if only_positive:
@@ -226,7 +288,7 @@ class DataGenerator(ABC):
             xr.Dataset or np.ndarray: the same data but with added noise. Returns the same
                 type like the provided 'data' type.
         """
-        data = data.copy(deep=True)
+        data = data.copy()  # deep copy is true by default for xr
 
         # get numpy format of the data we want to manipulate (add noise) if needed
         np_data = None

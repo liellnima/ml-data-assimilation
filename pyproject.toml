@@ -56,7 +56,10 @@ max-line-length = 120
 ignore = ["E203", "E266", "E501", "W503"]
 docstring-convention = "google"
 max-complexity = 20
-per-file-ignores = []
+per-file-ignores = [
+    "src/ml_da/data/generators/__init__.py:F401",
+    "src/ml_da/data/generate.py:F401"
+]
 exclude = [
     ".git",
     "migrations",

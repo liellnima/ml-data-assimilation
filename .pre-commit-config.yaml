@@ -48,7 +48,6 @@ repos:
   rev: 7.2.0
   hooks:
   - id: flake8
-    exclude: ^src/ml_da/data/generators/__init__\.py$
     additional_dependencies: [flake8-pyproject]
 
 - repo: https://github.com/ikamensh/flynt
