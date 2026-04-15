@@ -5,4 +5,5 @@ non_linearity: # mapped to external forcing parameter: lower values -> more stab
   med: 8
   hig: 10
 params:
+  somevalue: 100
   # TODO add list of params

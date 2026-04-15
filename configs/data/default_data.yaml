@@ -1,4 +1,4 @@
 configs:
   #- system: "data/systems/Lorenz96.yaml"
-  - generator: "data/generator/default_generator.yaml"
-  - core: "data/core/default_data_core.yaml"
+  - generator: "generator/default_generator.yaml"
+  - core: "core/default_data_core.yaml"

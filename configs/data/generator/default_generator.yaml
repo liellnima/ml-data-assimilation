@@ -1,12 +1,12 @@
 # this one overwrites the variables of the core data config when iterating to generate all desired datasets
-systems: # the underlying system for which you want to generate data
+system: # the underlying system for which you want to generate data
   name: # list of systems (needs to be called "configs")
     - Lorenz96 # refers to config file that stores params of that system
   non_linearity: 
     - low # weakly chaotic
     - med # standar chaotic 
     - hig # strongly chaotic
-models:
+model:
   error_type:
     - normal # for now we only support Gaussian noise
   error_sd: # standard deviation of model error (Gaussian) in units: lower values -> less error
@@ -14,7 +14,7 @@ models:
     - 0.1
     - 1.2
     - 2.0
-observers: # there are many other options: https://github.com/StevePny/DataAssimBench/blob/main/dabench/observer/_observer.py
+observer: # there are many other options: https://github.com/StevePny/DataAssimBench/blob/main/dabench/observer/_observer.py
   density: # could be split up in temporal and local density (easy)
    # xxx sparsity: percentage sample-density (low sparsity: high sample density)
     - 0.75 # very dense

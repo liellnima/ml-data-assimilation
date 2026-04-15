@@ -1,0 +1,6 @@
+
+#load_data:
+name: persistence
+params: 
+  some_value: 1
+  other_value: 2
