@@ -11,6 +11,9 @@ dependencies = [
     "dabench@git+https://github.com/StevePny/DataAssimBench.git",
     "pydantic>=2.12.5",
     "typer>=0.24.1",
+    "qgs>=1.0.0",
+    "zarr<3",
+    "xarray>=2024.11.0",
 ]
 
 [dependency-groups]
