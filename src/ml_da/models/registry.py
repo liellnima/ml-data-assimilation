@@ -1,7 +1,12 @@
+from __future__ import annotations
+
+import logging
 from collections.abc import Callable
 
 from ml_da.models.base_model import BaseAssimilationModel
 from ml_da.models.persistence import PersistenceModel
+
+logger = logging.getLogger(__name__)
 
 MODEL_REGISTRY: dict[str, Callable[..., BaseAssimilationModel]] = {
     "persistence": PersistenceModel,

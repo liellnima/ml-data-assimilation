@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
 # TODO this template needs to be adapted (probably signficantly) to match with our models and data
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAssimilationModel(ABC):
