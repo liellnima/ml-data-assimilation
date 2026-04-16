@@ -35,7 +35,7 @@ class Var4D:
         observation_jacobian : observation Jacobian      x -> dH/dx
         B : background covariance
         R : observation covariance
-        x_b : background state
+        x_b : background state (estimate)
         """
 
         # Control variable
