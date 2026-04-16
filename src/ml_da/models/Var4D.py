@@ -59,7 +59,7 @@ class Var4D:
             Y_list = []
             dy_list = []
 
-            # ---- forward pass over time ----
+            # forward pass over time
             for k in time_sequence:
 
                 # Propagate state + Jacobian
