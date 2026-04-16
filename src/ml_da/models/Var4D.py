@@ -40,86 +40,78 @@ class Var4D:
 
         # Control variable
         Nx = len(x_b)
-        w = np.zeros(Nx)
+
         B12 = np.linalg.cholesky(B)  # B^(1/2)
         Rm12 = self.sym_sqrt_inv(R)  # R^(-1/2)
 
+        # initialize background state
+        x_state = x_b.copy()
+
         self.Compute_evaluation_metrics()
 
-        for iteration in range(self.nIter):
+        for t in time_sequence:
 
-            # Reconstruct initial state
-            x = x_b + B12 @ w
-            X = self.B12.copy()  # dx/dw
+            # if no obs at this time, we can just propagate state
+            if obs[t] is None:
+                x_state = dynamic_model(x_state)
+                continue
 
-            # Initialize accumulators
-            grad = -w
-            Y_list = []
-            dy_list = []
+            y = obs[t]
+            w = np.zeros(Nx)
 
-            for t in time_sequence:
+            # Inner loop (Gauss-Newton)
+            for _ in range(self.nIters):
 
-                # Propagate state + Jacobian
-                M_k = dynamic_jacobian(x)
-                X = M_k @ X
-                x = dynamic_model(x)
+                # reconstruct initial condition
+                x = x_state + B12 @ w
 
-                self.Compute_evaluation_metrics()
+                # tangent linear propagation
+                X = B12.copy()
 
-                # If observation exists
-                if obs[t] is not None:
+                x_f = x.copy()
 
-                    y = obs[t]
+                # forward model + TLM
+                x_f = dynamic_model(x_f)
+                X = dynamic_jacobian(x_f) @ X
 
-                    # Observation linearization
-                    y_pred = observation_operator(x)
-                    Y = observation_jacobian(x) @ X
+                # observation space
+                y_pred = observation_operator(x_f)
+                Y = observation_jacobian(x_f) @ X
 
-                    # Whitening
-                    dy = Rm12 @ (y - y_pred)
-                    Y = Rm12 @ Y
+                # whitening
+                dy = Rm12 @ (y - y_pred)
+                Yw = Rm12 @ Y
 
-                    # Store contributions
-                    Y_list.append(Y)
-                    dy_list.append(dy)
+                # Gradient
+                grad = Yw.T @ dy - w
 
-                    # Gradient contribution
-                    grad += Y.T @ dy
+                # SVD
+                U, s, Vt = np.linalg.svd(Yw, full_matrices=False)
 
-            if len(Y_list) == 0:
-                break  # no observations → nothing to do
+                d = s**2 + 1.0
+                dw = Vt.T @ ((Vt @ grad) / d)
 
-            Y_all = np.vstack(Y_list)
-            np.concatenate(dy_list)
+                w += dw
 
-            # SVD-based Gauss–Newton step
-            U, s, Vt = np.linalg.svd(Y_all, full_matrices=False)
+                if np.linalg.norm(dw) < self.tol:
+                    break
 
-            # Compute (Y^T Y + I)^-1 grad
-            # dw = V ( (V^T grad) / (s^2 + 1) )
-            d = s**2 + 1.0
-            dw = Vt.T @ ((Vt @ grad) / d)
+            # Analysis update
+            x_a = x_state + B12 @ w
 
-            # Update control
-            w += dw
+            self.compute_evaluation_metrics()
 
-            self.Compute_evaluation_metrics()
+            # Update background-
+            x_state = dynamic_model(x_a)
 
-            # Convergence check
-            if np.linalg.norm(dw) < self.tol:
-                break
-
-        # Final state reconstruction
-        x_b + self.B12 @ w
-        self.Compute_evaluation_metrics()
+            self.compute_evaluation_metrics()
 
     def sym_sqrt_inv(self, R):
         w, V = np.linalg.eigh(R)
-        idx = w > 1e-10
+        idx = w > 1e-12
         w = w[idx]
         V = V[:, idx]
         return (V * (1.0 / np.sqrt(w))) @ V.T
 
-    def Compute_evaluation_metrics(self, *args, **kwargs):
-        # Will probably be implemented in superclass?
-        return None
+    def compute_evaluation_metrics(self):
+        pass
