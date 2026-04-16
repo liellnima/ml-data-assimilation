@@ -40,78 +40,79 @@ class Var4D:
 
         # Control variable
         Nx = len(x_b)
+        w = np.zeros(Nx)
 
         B12 = np.linalg.cholesky(B)  # B^(1/2)
         Rm12 = self.sym_sqrt_inv(R)  # R^(-1/2)
 
-        # initialize background state
-        x_state = x_b.copy()
-
         self.Compute_evaluation_metrics()
 
-        for t in time_sequence:
+        for _ in range(self.nIter):
 
-            # if no obs at this time, we can just propagate state
-            if obs[t] is None:
-                x_state = dynamic_model(x_state)
-                continue
+            # Reconstruct initial state
+            x = x_b + B12 @ w
+            X = B12.copy()  # Jacobian dx/dw
 
-            y = obs[t]
-            w = np.zeros(Nx)
+            # Accumulators
+            grad = -w
 
-            # Inner loop (Gauss-Newton)
-            for _ in range(self.nIters):
+            Y_list = []
+            dy_list = []
 
-                # reconstruct initial condition
-                x = x_state + B12 @ w
+            # ---- forward pass over time ----
+            for k in time_sequence:
 
-                # tangent linear propagation
-                X = B12.copy()
+                # Propagate state + Jacobian
+                M_k = dynamic_jacobian(x)
+                X = M_k @ X
+                x = dynamic_model(x)
 
-                x_f = x.copy()
+                # If observation exists
+                if obs[k] is not None:
 
-                # forward model + TLM
-                x_f = dynamic_model(x_f)
-                X = dynamic_jacobian(x_f) @ X
+                    y = obs[k]
 
-                # observation space
-                y_pred = observation_operator(x_f)
-                Y = observation_jacobian(x_f) @ X
+                    # Observation linearization
+                    y_pred = observation_operator(x)
+                    Y = observation_jacobian(x) @ X
 
-                # whitening
-                dy = Rm12 @ (y - y_pred)
-                Yw = Rm12 @ Y
+                    # Whitening
+                    dy = Rm12 @ (y - y_pred)
+                    Y = Rm12 @ Y
 
-                # Gradient
-                grad = Yw.T @ dy - w
+                    # Store contributions
+                    Y_list.append(Y)
+                    dy_list.append(dy)
 
-                # SVD
-                U, s, Vt = np.linalg.svd(Yw, full_matrices=False)
+                    # Gradient contribution
+                    grad += Y.T @ dy
 
-                d = s**2 + 1.0
-                dw = Vt.T @ ((Vt @ grad) / d)
+            if len(Y_list) == 0:
+                break  # no observations → nothing to do
 
-                w += dw
+            Y_all = np.vstack(Y_list)
+            np.concatenate(dy_list)
 
-                if np.linalg.norm(dw) < self.tol:
-                    break
+            # SVD-based Gauss–Newton step
+            # Y_all = U S V^T
+            U, s, Vt = np.linalg.svd(Y_all, full_matrices=False)
 
-            # Analysis update
-            x_a = x_state + B12 @ w
+            # Compute (Y^T Y + I)^-1 grad efficiently
+            # dw = V ( (V^T grad) / (s^2 + 1) )
+            d = s**2 + 1.0
+            dw = Vt.T @ ((Vt @ grad) / d)
 
-            self.compute_evaluation_metrics()
+            # Update control
+            w += dw
 
-            # Update background-
-            x_state = dynamic_model(x_a)
+            self.Compute_evaluation_metrics()
 
-            self.compute_evaluation_metrics()
+            # Convergence check
+            if np.linalg.norm(dw) < self.tol:
+                break
 
-    def sym_sqrt_inv(self, R):
-        w, V = np.linalg.eigh(R)
-        idx = w > 1e-12
-        w = w[idx]
-        V = V[:, idx]
-        return (V * (1.0 / np.sqrt(w))) @ V.T
+        # Final state reconstruction
+        x_final = x_b + self.B12 @ w
 
-    def compute_evaluation_metrics(self):
-        pass
+        self.Compute_evaluation_metrics()
+        return x_final
