@@ -170,6 +170,10 @@ class DynamicalModel(ABC):
         This might be used by traditional data assimilation methods that update the state in between each numerical
         model step.
         """
+        if state is not None and self.return_tlm:
+            raise NotImplementedError(
+                "Cannot yet provide function updating of states, when we also need to return the Jacobian."
+            )
         # set the state of our model with the given state
         # default is that we use the current internal state (is automaticall updated)
         if state is not None:
