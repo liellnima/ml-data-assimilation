@@ -3,57 +3,59 @@ from __future__ import annotations
 import itertools
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Iterator, List, Tuple
+from typing import Any, Iterator, Literal
 
 from pydantic import BaseModel, Field
 
-from ml_da import CONFIGS_DIR
 from ml_da.tools.io import load_yaml
+
+
+class ErrorConfig(BaseModel):
+    error_type: str = "normal"
+    error_params: dict[str, Any] = {"loc": 0, "scale": 0.01}
+    only_positive: bool = False
+    seed: int = 1234567
+
+
+class SystemConfig(BaseModel):
+    name: Literal["Lorenz96"] = "Lorenz96"
+    non_linearity: dict[str, Any] = Field(default_factory=dict)
+    chosen_non_linear_level: Literal["low", "med", "hig"] = "med"
+    initial_state: str = "resources/initial_states/lorenz96_dim-36_delta-05_timesteps-14400.json"
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class DynamicalModelConfig(BaseModel):
+    name: Literal["SyntheticNumericalModel"] = "SyntheticNumericalModel"
+    ensemble_size: int = 20
+    perturbation_error: ErrorConfig = Field(default_factory=ErrorConfig)
+    model_error: ErrorConfig = Field(default_factory=ErrorConfig)
+
+
+class ObserverConfig(BaseModel):
+    name: Literal["SyntheticObserver"] = "SyntheticObserver"
+    density: float = 0.25
+    stationary_observers: bool = True
+    observation_error: ErrorConfig = Field(default_factory=ErrorConfig)
 
 
 class DataCoreConfig(BaseModel):
     seed: int = 1234
     timesteps: int = 1000
-    system: dict[str, Any] = Field(default_factory=dict)
-    model: dict[str, Any] = Field(default_factory=dict)
-    observer: dict[str, Any] = Field(default_factory=dict)
+    system: SystemConfig = Field(default_factory=SystemConfig)
+    model: DynamicalModelConfig = Field(default_factory=DynamicalModelConfig)
+    observer: ObserverConfig = Field(default_factory=ObserverConfig)
 
-    # TODO delete this if not needed anymore
-    # sys_name: str
-    # sys_non_linearity: Literal["low", "med", "hig"]
-    # # synthetic model params
-    # mod_error_type: Literal["gaussian"]
-    # mod_error_sd: float = 1.5
-    # mod_init_conds_noise: float = 0.01
-    # mod_error_pos_only: bool = False
-    # # observation params
-    # obs_density: float = 0.5
-    # obs_error_type: str = "gaussian"
-    # obs_error_sd: float = 1.2
-    # # should stay fixed
-    # obs_error_pos_only: bool = True
+
+# TODO we need to make sure this one can overwrite the data core config correctly
 
 
 class GeneratorConfig(BaseModel):
     # seed: int
     # timesteps: int
-    system: dict[str, List] = Field(default_factory=dict)
-    model: dict[str, List] = Field(default_factory=dict)
-    observer: dict[str, List] = Field(default_factory=dict)
-    # TODO delete this if not needed anymore
-    # sys_name: list[Literal["Lorenz96"]] = ["Lorenz96"]  # keys of dict
-    # sys_non_linearity: list[Literal["low", "med", "hig"]] = ["med"]
-    # mod_error_type: list[Literal["gaussian"]] = ["gaussian"]
-    # mod_error_sd: list[float] = [1.5]
-    # obs_density: list[float] = [0.5]
-    # obs_error_type: list[str] = ["gaussian"]
-    # obs_error_sd: list[float] = [1.2]
-
-
-class SystemConfig(BaseModel):
-    name: str = "Lorenz96"
-    non_linearity: dict[str, Any] = Field(default_factory=dict)
-    params: dict[str, Any] = Field(default_factory=dict)
+    system: dict[str, Any] = Field(default_factory=dict)
+    model: dict[str, Any] = Field(default_factory=dict)
+    observer: dict[str, Any] = Field(default_factory=dict)
 
 
 class DataConfig(BaseModel):
@@ -224,9 +226,9 @@ def _config_combination_iterator(generator_config: GeneratorConfig) -> Iterator[
 
     Example:
         {
-            "systems": {"name": "Lorenz96", "non_linearity": "low"},
-            "models": {"error_type": "normal", "error_sd": 0.1},
-            "observers": {"density": 0.75, "error_type": "gaussian", "error_sd": 0.1},
+            "system": {"name": "Lorenz96", "non_linearity": "low"},
+            "model": {"error_type": "normal", "error_sd": 0.1},
+            "observer": {"density": 0.75, "error_type": "gaussian", "error_sd": 0.1},
         }
     """
     data_dict = generator_config.model_dump()
@@ -266,12 +268,10 @@ def _update_data_core_cfg(
     return DataCoreConfig.model_validate(merged_dict)
 
 
-def get_data_and_system_cfgs(
-    data_generator_cfg: GeneratorConfig, data_core_cfg: DataCoreConfig
-) -> list[Tuple[DataCoreConfig, SystemConfig]]:
+def build_cfg_combos(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCoreConfig) -> list[DataCoreConfig]:
     """
     Given a list of changing dataset params and the core dataset params, this function return a list providing the
-    DataCoreConfig and SystemConfig obj for all possible param combinations in the Generator.
+    DataCoreConfig and all other relevant config obj for all possible param combinations in the Generator.
 
     Params:
         data_generator_cfg (GeneratorConfig): The params that are changing for different datasets.
@@ -280,27 +280,21 @@ def get_data_and_system_cfgs(
             generator config is going to stay the same as indicated in this core config.
 
     Returns:
-        List(Tuple(<DataCoreConfig>, <SystemConfig>)): The length of the list is the number
+        List(DataCoreConfig): The length of the list is the number
             of possible combinations (i.e. each entry corresponds to one possible dataset).
-            It contains the core data configs and the system configs needed to create this dataset.
+            It contains the core data configs, that has been updated with the desired params.
     """
     # create all possible combinations of datasets given the generator configs
     cfg_iter = _config_combination_iterator(data_generator_cfg)
 
-    all_cfgs = []  # first entry in each tuple is data core cfg, second entry is system cfg
+    # list of resolved data core configs
+    all_cfgs = []
 
     # iterate over all possible config combinations and overwrite the default values of the DataCoreConfig that way
     for params in cfg_iter:
         # get the default config values of our data object (only some of them are overwritting by the generator config)
         # and unpack the current values into the default dict
         curr_dataset_cfg = _update_data_core_cfg(data_core_cfg, params)
-
-        # TODO the whole system thing is not a pretty solution imo,
-        # we accept it as tech debt for now
-        system_id_name = curr_dataset_cfg.system["name"]
-        system_cfg_path = CONFIGS_DIR / "data" / "systems" / f"{system_id_name}.yaml"
-        system_cfg = SystemConfig(**load_yaml(system_cfg_path))
-
-        all_cfgs.append((curr_dataset_cfg, system_cfg))
+        all_cfgs.append(curr_dataset_cfg)
 
     return all_cfgs

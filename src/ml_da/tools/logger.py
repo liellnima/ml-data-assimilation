@@ -33,5 +33,5 @@ def setup_logging(
     root_logger.addHandler(file_handler)
 
     # Silence third parties
-    for lib in ["jax", "jaxlib", "dabench", "zarr"]:
+    for lib in ["jax", "jaxlib", "dabench", "zarr", "numcodecs"]:
         logging.getLogger(lib).setLevel(logging.WARNING)
