@@ -1,0 +1,7 @@
+name: EnKF
+requires_training: False
+requires_adjoint: False
+requires_ensemble: True
+params:
+  some_value: 1
+  other_value: 2

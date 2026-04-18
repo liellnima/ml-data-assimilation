@@ -1,5 +1,5 @@
 # This main config file overwrites the other subconfigs
-experiment_name: my-default-run
+experiment_name: test-models
 overwrite: True
 # stage: 
 #   - generate
@@ -11,9 +11,9 @@ overwrite: True
 #   # - visualize
 configs:
   - data: "data/main_data.yaml" # generates (or loads) data
-  - model: "models/default_model.yaml" # get models
+  - run_model: "models/run_model.yaml" # get model configs (also on which dataset to run)
   - evaluation: "evaluation/default_evaluation.yaml" # evaluates models
-  - aggreggation: "aggregation/default_aggregation.yaml" # sweeps over runs
+  - aggregation: "aggregation/default_aggregation.yaml" # sweeps over runs
   - visualization: "visualization/default_visualization.yaml" # visualizes results
 
   

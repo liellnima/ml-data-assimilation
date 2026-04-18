@@ -1,0 +1,7 @@
+name: persistence
+requires_training: False
+requires_adjoint: False
+requires_ensemble: False
+params: 
+  some_value: 1
+  other_value: 2

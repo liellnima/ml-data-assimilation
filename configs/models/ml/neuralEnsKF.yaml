@@ -1,0 +1,7 @@
+name: neuralEnsKF
+requires_training: True
+requires_adjoint: False
+requires_ensemble: True
+params:
+  some_value: 1
+  other_value: 2
