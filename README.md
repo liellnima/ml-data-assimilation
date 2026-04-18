@@ -68,8 +68,15 @@ You are now ready to start development!
 1. **Run Data Generation**
    ```bash
    # To run the default main.yaml config
-   typer src/ml_da/cli.py run generate
+   typer src/ml_da/cli.py run data-generation
 
    # If you want to run specific configs 
-   typer src/ml_data/cli.py run generate --config configs/your_experiments/template.yaml
+   typer src/ml_data/cli.py run data-generation --config configs/your_experiments/template.yaml
+   ```
+2. **Run Models**
+   ```bash
+   typer src/ml_da/cli.py run model
+
+   # you can also provide the exact model config and the dataset id
+   typer src/ml_da/cli.py run model -m configs/models/da/4dvar.yaml -d 002
    ```
