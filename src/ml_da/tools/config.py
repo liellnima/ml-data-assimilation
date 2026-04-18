@@ -66,7 +66,15 @@ class DataConfig(BaseModel):
 
 class ModelConfig(BaseModel):
     name: str = "persistence"
+    requires_training: bool = False
+    requires_adjoint: bool = False
+    requires_ensemble: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunModelConfig(BaseModel):
+    data_id: str = "999"
+    model: ModelConfig = Field(default_factory=ModelConfig)
 
 
 class EvalConfig(BaseModel):
@@ -89,7 +97,7 @@ class ExperimentConfig(BaseModel):
     experiment_name: str = "default-run"
     overwrite: bool = True
     data: DataConfig = Field(default_factory=DataConfig)
-    model: ModelConfig = Field(default_factory=ModelConfig)
+    run_model: RunModelConfig = Field(default_factory=RunModelConfig)
     evaluation: EvalConfig = Field(default_factory=EvalConfig)
     aggregation: AggrConfig = Field(default_factory=AggrConfig)
     visualization: VizConfig = Field(default_factory=VizConfig)
@@ -100,6 +108,14 @@ def load_config(path: str | Path) -> ExperimentConfig:
     raw = load_yaml(path)
     resolved = _resolve_configs(raw, path.parent, visited={path})
     return ExperimentConfig.model_validate(resolved)
+
+
+# TODO FUTURE make something that works for different config classes
+def load_data_core_config(path: str | Path) -> DataCoreConfig:
+    path = Path(path).resolve()
+    raw = load_yaml(path)
+    resolved = _resolve_configs(raw, path.parent, visited={path})
+    return DataCoreConfig.model_validate(resolved)
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -246,6 +262,26 @@ def _config_combination_iterator(generator_config: GeneratorConfig) -> Iterator[
         for path, value in zip(paths, combination):
             _set_nested_value(config_instance, path, value)
         yield config_instance
+
+
+def update_experiment_cfg(
+    cfg: ExperimentConfig,
+    params: dict[str, Any],
+) -> ExperimentConfig:
+    """
+    Return a new DataCoreConfig where nested fields are deep-updated from the provided params dict.
+
+    Params:
+        data_core_cfg (DataCoreConfig): The basic data core config that we want to adapt.
+            We want to keep the default values of this obj for all the args that do not show up in params.
+        params (dict[str, Any]): The params that should be used to update the data core config.
+
+    Returns:
+        DataCoreConfig: A new and updated data core config
+    """
+    base_dict = cfg.model_dump()
+    merged_dict = _deep_merge(base_dict, params)
+    return ExperimentConfig.model_validate(merged_dict)
 
 
 def _update_data_core_cfg(

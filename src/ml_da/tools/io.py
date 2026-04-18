@@ -47,6 +47,7 @@ def save_xr_dataset_zarr(ds: xr.Dataset | list[xr.Dataset], path: Path, mode: st
     if isinstance(ds, list):
         for i, single_ds in enumerate(ds):
             mode = "w" if i == 1 else "a"
+            # TODO make sure this is not saved with '{}' around it (happening right now for some reason??)
             single_ds.to_zarr(path, group={f"ensemble_{i}"}, mode=mode)
     # in most cases we just have a single dataset
     elif isinstance(ds, xr.Dataset):
@@ -87,14 +88,15 @@ def load_data_bundle(
     # differentiate between ensemble case and loading a single model
     if ensembles is not None:
         dyn_model_data = [
-            load_xr_dataset_zarr(root / "my_datasets.zarr", group=f"ensemble_{i}", chunks=chunks) for i in ensembles
+            load_xr_dataset_zarr(root / "dynamical_model.zarr", group=f"{{'ensemble_{i}'}}", chunks=chunks)
+            for i in ensembles
         ]
     else:
         dyn_model_data = load_xr_dataset_zarr(root / "dynamical_model.zarr", chunks=chunks)
 
     bundle = AssimDataBundle(
         truth=load_xr_dataset_zarr(root / "truth.zarr", chunks=chunks),
-        numerical_model=dyn_model_data,
+        dynamical_model=dyn_model_data,
         observations=load_xr_dataset_zarr(root / "observations.zarr", chunks=chunks),
         metadata=load_yaml(root / "metadata.yaml"),
     )
