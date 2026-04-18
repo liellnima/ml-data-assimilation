@@ -13,7 +13,7 @@ class AssimDataBundle:
     """Data used during assimilation."""
 
     truth: xr.Dataset
-    numerical_model: xr.Dataset
+    dynamical_model: xr.Dataset
     observations: xr.Dataset
     metadata: dict[str, Any]  # TODO reference the config file in the metadata
     # TODO add sth to get "synthetic numerical model"? (not needed for ML methods)
@@ -24,6 +24,6 @@ class TrainDataBundle:
     """Data used during training of the ML models to emulate the 'synthetic numerical models'."""
 
     truth: xr.Dataset
-    numerical_model: xr.Dataset
+    dynamical_model: xr.Dataset
     observations: xr.Dataset
     metadata: dict[str, Any]

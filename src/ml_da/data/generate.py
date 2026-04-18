@@ -2,20 +2,17 @@ from __future__ import annotations
 
 import concurrent.futures
 import logging
+import multiprocessing as mp
 from pathlib import Path
 
-# TODO test what happens when we out-comment this line
-# afaiu we need this for our registry to work - we need to import all the generators we are potentially using here
-import ml_da.data.generators  # import all generators
 from ml_da import DATA_DIR
+from ml_da.data.data_generator import DataGenerator
 from ml_da.tools.config import (
     DataCoreConfig,
     GeneratorConfig,
-    SystemConfig,
-    get_data_and_system_cfgs,
+    build_cfg_combos,
 )
 from ml_da.tools.io import save_data_bundle, save_yaml
-from ml_da.tools.registry import GENERATOR_REGISTRY
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +20,10 @@ logger = logging.getLogger(__name__)
 # AND make sure that you have a separate logging file for each task
 
 
-def generate_single_dataset(data_cfg: DataCoreConfig, system_cfg: SystemConfig, id: int = 0) -> Path:
+def generate_single_dataset(
+    data_cfg: DataCoreConfig,
+    id: int = 0,
+) -> Path:
     """
     Generates a single dataset from a data core config and a system config.
 
@@ -37,15 +37,21 @@ def generate_single_dataset(data_cfg: DataCoreConfig, system_cfg: SystemConfig, 
     # TODO unclear to me how to setup individual worker logging here
 
     # create the generator and generate the data
-    data_generator = GENERATOR_REGISTRY[system_cfg.name](data_cfg, system_cfg)
+    data_generator = DataGenerator(
+        data_cfg,
+        data_cfg.system,
+        data_cfg.model,
+        data_cfg.observer,
+    )
     data_bundle = data_generator.generate()
+
     # create path for this specific dataset
     path = DATA_DIR / f"Dataset-{id:03}_{data_generator.get_id_name()}"
 
     # store the data and the configs
     save_data_bundle(data_bundle, path)
-    save_yaml(data_cfg.model_dump(), path / "data_configs.yaml")
-    save_yaml(system_cfg.model_dump(), path / "system_configs.yaml")
+    # TODO make sure that has the resolved configs
+    save_yaml(data_cfg.model_dump(), path / "configs.yaml")
 
     return path
 
@@ -64,17 +70,24 @@ def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCo
         list(Path): List of Paths where all the data has been stored.
     """
     # get specific data core and system configs for all possible combinations of the dataset params in generator
-    all_data_and_system_cfgs = get_data_and_system_cfgs(data_generator_cfg, data_core_cfg)
+    all_cfg_combos = build_cfg_combos(data_generator_cfg, data_core_cfg)
 
     # test this on a single case
-    generate_single_dataset(*all_data_and_system_cfgs[0])
+    # generate_single_dataset(all_cfg_combos[0], id=999)
+    # print("Got one dataset, go check it out :D")
+    # exit(0)
+
+    # I get a forking warning with potential deadlock because of jax (already doing some threads)
+    # -> ChatGPT suggested to use "spawn" or "forkserver" to make sure stuff is single-threaded
+    # TODO Tech Debt warning: I do not fully understand what is going on here
+    ctx = mp.get_context("forkserver")
 
     # parellelize execution of dataset generation
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+    with concurrent.futures.ProcessPoolExecutor(mp_context=ctx) as executor:
         # schedule all tasks and make sure we can track the different processes
         task_id_dict = {
-            executor.submit(generate_single_dataset, data_cfg, system_cfg, task_id): task_id
-            for task_id, (data_cfg, system_cfg) in enumerate(all_data_and_system_cfgs)
+            executor.submit(generate_single_dataset, data_cfg, task_id): task_id
+            for task_id, (data_cfg) in enumerate(all_cfg_combos)
         }
 
         # check out completed tasks
