@@ -7,6 +7,7 @@ import xarray as xr
 
 from ml_da.data.transformations import add_noise
 from ml_da.tools.config import DynamicalModelConfig
+from ml_da.tools.utils import get_state
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class DynamicalModel(ABC):
         # for most methods we either need ensembles or tlms
         # this can be adapted in the future, but we need to rework the whole system in that case
         # which is why I want this to throw an error, so we notice
-        if (self.ensemble_size == 1) and return_tlm:
+        if (self.ensemble_size > 1) and return_tlm:
             raise ValueError("Dynamical Models currently supports ensembles generation xor TLMs, but not both.")
         self.return_tlm = return_tlm
 
@@ -108,15 +109,10 @@ class DynamicalModel(ABC):
 
         Can do this for ensembles or single models.
         """
-
-        # TODO check this one:
-        def _func_get_single_state(dataset):
-            return dataset.isel(time=-1).to_array().data.flatten()
-
         if isinstance(full_trajectory, list):
-            return [_func_get_single_state(ds) for ds in full_trajectory]
+            return [get_state(ds, time=-1) for ds in full_trajectory]
         else:
-            return _func_get_single_state(full_trajectory)
+            return get_state(full_trajectory, time=-1)
 
     def run_ensemble(
         self,
@@ -125,7 +121,7 @@ class DynamicalModel(ABC):
         return_tlm: bool,
     ) -> list[xr.Dataset] | xr.Dataset:
         """Run an ensemble (or a single run) of the numerical model."""
-        if (self.ensemble_size == 1) and return_tlm:
+        if (self.ensemble_size > 1) and return_tlm:
             raise ValueError("TLM / Adjoint model not supported for ensembles at the moment.")
         # also handles single model run
         if self.ensemble_size == 1:
@@ -194,7 +190,8 @@ class DynamicalModel(ABC):
             state_xr, linear_xr = state_xr
             # set the new linearized matrix (TLM)
             updated_linear = np.asarray(linear_xr.isel(time=-1).data)
-            self.linear = updated_linear
+
+            self._linear = updated_linear
 
         # add noise to new state
         noisy_state_xr = add_noise(

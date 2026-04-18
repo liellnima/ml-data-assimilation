@@ -57,7 +57,7 @@ class System(ABC):
 
     @property
     @abstractmethod
-    def dim(self) -> tuple:
+    def system_dim(self) -> tuple:
         """Get the dim of the system."""
 
     @abstractmethod

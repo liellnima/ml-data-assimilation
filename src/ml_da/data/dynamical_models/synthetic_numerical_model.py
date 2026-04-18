@@ -27,7 +27,8 @@ class SyntheticNumericalModel(DynamicalModel):
         # init system depending on name
         self.true_system = SYSTEM_REGISTRY[sys_cfg.name](sys_cfg)
         self.true_initial_state = self.true_system.initial_state
-        self.true_system_dim = self.true_system.dim
+        self.true_system_dim = self.true_system.system_dim
+
         # only call super afterwards, because it calls create_initial_state
         super().__init__(dyn_cfg, return_tlm)
 
@@ -95,16 +96,16 @@ class SyntheticNumericalModel(DynamicalModel):
             raise ValueError("Expected a single state, but got an ensemble of states.")
 
         # make sure we are not running the model on our true initial state on accident
-        if np.array_equal(self.state, self.true_initial_state):
+        if np.array_equal(state, self.true_initial_state):
             raise RuntimeError(
                 "The model runs a realization that has the same state like the ground truth, i.e. something went wrong. Model runs are supposed to never be equal to the ground truth."
             )
 
         # call the system directly (not via step, to generate the tlm)
-        model_data = self.true_system._system.generate(
+        # they start with the initial states, that's why we need to add +1 here
+        # otherwise we only get the initial states for step=1
+        return self.true_system._system.generate(
             x0=state,
-            n_steps=n_steps,
+            n_steps=n_steps + 1,
             return_tlm=return_tlm,
         )
-
-        return model_data

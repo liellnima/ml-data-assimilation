@@ -7,7 +7,7 @@ import xarray as xr
 from ml_da.data.systems.base_system import System
 from ml_da.tools.config import SystemConfig
 from ml_da.tools.registry import system
-from ml_da.tools.utils import str_join_ls
+from ml_da.tools.utils import get_state, str_join_ls
 
 # fmt: off
 for lib in ["jax", "jaxlib"]:
@@ -47,7 +47,8 @@ class Lorenz96(System):
         """Return string that identifies the observer instance."""
         return str_join_ls(["SYSTEM", self.name, self._forcing_factor])
 
-    def dim(self) -> tuple:
+    @property
+    def system_dim(self) -> tuple:
         """Get the dim of the system."""
         return self._system.system_dim
 
@@ -74,12 +75,12 @@ class Lorenz96(System):
     def generate_ground_truth(self, n_steps: int) -> xr.Dataset | tuple[xr.Dataset]:
         full_trajectory = self._system.generate(
             x0=self.x,
-            n_steps=n_steps,
+            n_steps=n_steps + 1,
         )
 
         # retrieve the state of the last timestep
         # and set this as the newest state
-        new_state = full_trajectory.isel(time=-1).to_array().data.flatten()
+        new_state = get_state(full_trajectory, time=-1)
         if new_state.shape != self.x.shape:
             raise RuntimeError("Expected the new state to be of shape {self.x.shape}, but got {new_state.shape}")
         self.x = new_state
