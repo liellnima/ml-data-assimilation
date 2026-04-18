@@ -57,8 +57,11 @@ ignore = ["E203", "E266", "E501", "W503"]
 docstring-convention = "google"
 max-complexity = 20
 per-file-ignores = [
-    "src/ml_da/data/generators/__init__.py:F401",
-    "src/ml_da/data/generate.py:F401"
+    "src/ml_da/data/dynamical_models/__init__.py:F401",
+    "src/ml_da/data/observers/__init__.py:F401",
+    "src/ml_da/data/systems/__init__.py:F401",
+    "src/ml_da/data/dynamical_models/synthetic_numerical_model.py:F401",
+    "src/ml_da/data/data_generator.py:F401"
 ]
 exclude = [
     ".git",
