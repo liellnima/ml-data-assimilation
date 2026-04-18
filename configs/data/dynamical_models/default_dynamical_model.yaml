@@ -1,0 +1,16 @@
+name: SyntheticNumericalModel
+ensemble_size: 40
+perturbation_error:
+  error_type: normal
+  error_params:
+    loc: 0.0
+    scale: 0.01
+  only_positive: False
+  seed: 987654 # TODO do we need a separate seed? or can I draw n samples with this seed and it would always be the same?
+model_error:
+  error_type: normal
+  error_params:
+    loc: 0.0
+    scale: 0.1
+  only_positive: False
+  seed: 1234567

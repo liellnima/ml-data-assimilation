@@ -1,21 +1,7 @@
 seed: 42
 timesteps: 1000
-# TODO add training vs assimilation timesteps here
-system: # the underlying system for which you want to generate data
-  name: Lorenz96 # refers to config file that stores params of that system
-  non_linearity: med # standard chaotic 
-model:
-  # TODO noise_on_model_outputs
-  error_type: normal # for now we only support Gaussian noise
-  error_sd: 1.5 # standard deviation of model error (Gaussian) in units: lower values -> less error
-  noise_on_initial_conditions: 
-    error_type: normal # must show up in np distributions: https://numpy.org/doc/2.1/reference/random/generator.html#distributions
-    error_params:
-      loc: 0.0 # the bias of the error
-      scale: 0.01 # the standard deviation of the error
-  error_pos_only: False # at the moment this is used both for the noise on the initial cond + and the outputs of the model
-observer: # there are many other options: https://github.com/StevePny/DataAssimBench/blob/main/dabench/observer/_observer.py
-  density: 0.25 # could be split up in temporal and local density (easy)
-  error_type: normal # for now we only support Gaussian noise
-  error_sd: 1.2 # standard deviation of observation error (Gaussian) in units: lower values -> less error
-  error_pos_only: True
+# TODO add training vs assimilation data timesteps
+configs:
+  - system: "../systems/Lorenz96.yaml"
+  - model: "../dynamical_models/default_dynamical_model.yaml"
+  - observer: "../observers/default_observer.yaml"

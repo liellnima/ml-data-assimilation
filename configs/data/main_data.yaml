@@ -1,0 +1,3 @@
+configs:
+  - generator: "generator/default_generator.yaml" # what will be overwritten
+  - core: "core/default_data_core.yaml" # default values

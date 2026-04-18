@@ -10,7 +10,7 @@ overwrite: True
 #   # - aggregate
 #   # - visualize
 configs:
-  - data: "data/default_data.yaml" # generates (or loads) data
+  - data: "data/main_data.yaml" # generates (or loads) data
   - model: "models/default_model.yaml" # get models
   - evaluation: "evaluation/default_evaluation.yaml" # evaluates models
   - aggreggation: "aggregation/default_aggregation.yaml" # sweeps over runs

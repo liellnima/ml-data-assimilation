@@ -1,0 +1,10 @@
+name: SyntheticObserver
+density: 0.25 # could be split up in temporal and local density (easy)
+stationary_observers: True
+observation_error:
+  error_type: normal
+  error_params:
+    loc: 0.0
+    scale: 0.1
+  only_positive: False
+  seed: 373737

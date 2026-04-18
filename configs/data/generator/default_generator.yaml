@@ -2,35 +2,39 @@
 system: # the underlying system for which you want to generate data
   name: # list of systems (needs to be called "configs")
     - Lorenz96 # refers to config file that stores params of that system
-  non_linearity: 
+  chosen_non_linear_level: 
     - low # weakly chaotic
     - med # standar chaotic 
     - hig # strongly chaotic
 model:
-  error_type:
-    - normal # for now we only support Gaussian noise
-  error_sd: # standard deviation of model error (Gaussian) in units: lower values -> less error
-  # TODO needs to be added to the code somehow??
-    - 0.1
-    - 1.2
-    - 2.0
+  model_error:
+    error_type:
+      - normal # for now we only support Gaussian noise
+    error_params: # standard deviation of model error (Gaussian) in units: lower values -> less error
+      scale:
+        - 0.1
+        - 1.0
+        - 10
 observer: # there are many other options: https://github.com/StevePny/DataAssimBench/blob/main/dabench/observer/_observer.py
   density: # could be split up in temporal and local density (easy)
    # xxx sparsity: percentage sample-density (low sparsity: high sample density)
+    - 0.90 # extremely dense
     - 0.75 # very dense
-    - 0.50 # medium dense
-    - 0.25 # not dense (sparse!)
-  error_type: # for now we only support Gaussian noise
-    - gaussian
-  error_sd: # standard deviation of observation error (Gaussian) in units: lower values -> less error
-    # 68% of the observations will have an error within xx.xx units, the rest more 
-    # should be adapted to different types of noise, not just Gaussian (more difficult); see line 346 in _observer.py 
-    # - 1.2   # the average measurement device error
-    # - 1.5   # slightly higher error
-    # - 2.0   #  very high error       
-    - 0.1
-    - 1.0
-    - 10
+    - 0.50 # medium dense (but minimum needed for Lorenz96 apparently)
+    #- 0.25 # not dense (sparse!)
+  observation_error:
+    error_type: # for now we only support Gaussian noise
+      - normal
+    error_params: # standard deviation of observation error (Gaussian) in units: lower values -> less error
+      # 68% of the observations will have an error within xx.xx units, the rest more 
+      # should be adapted to different types of noise, not just Gaussian (more difficult); see line 346 in _observer.py 
+      # - 1.2   # the average measurement device error
+      # - 1.5   # slightly higher error
+      # - 2.0   #  very high error       
+      scale:
+        - 0.1
+        - 1.0
+        - 10
 
 
 # What type of noise?

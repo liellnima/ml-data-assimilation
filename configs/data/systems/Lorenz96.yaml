@@ -4,6 +4,9 @@ non_linearity: # mapped to external forcing parameter: lower values -> more stab
   low: 5
   med: 8
   hig: 10
-params:
-  somevalue: 100
+chosen_non_linear_level: med # TODO add this to the code
+initial_state: resources/initial_states/lorenz96_dim-36_delta-05_timesteps-14400.json
+params: # parameters individual to the 
+  delta_t: 0.05 # time step size
+  system_dim: 36 # number of variables in system
   # TODO add list of params
