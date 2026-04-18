@@ -1,18 +1,22 @@
-# The EnKF method
+import time
 
 import numpy as np
 import scipy.linalg as sla
 
+from ml_da.experiments.metrics import compute_metrics, init_metrics
+
 
 class EnKF:
-    """
-    Ensemble Kalman Filter.
+    """Ensemble Kalman Filter (ETKF formulation)"""
 
-    N: number of samples (Ensemble size)
-    """
+    def __init__(self, N):
+        self.N = N
+        self.metrics = init_metrics()
+        self.runtime = None
+        self.last_trHK = np.nan  # diagnostic storage
+        self.trajectory = []
 
-    N: int
-
+    # Main step
     def step(
         self,
         ground_truth,
@@ -24,109 +28,128 @@ class EnKF:
         observation_operator,
         add_noise=None,
         dt=None,
-        noise=None,
     ):
+        self.trajectory = []
+        start_time = time.time()
 
-        _ = ground_truth
-        # CovX0 = covariance of initial states.
+        # Initial ensemble
         Ens = self.sample(CovX0)
 
-        # Define R^(-1/2)
-        R = Covy  # Observation covariance noise
+        R = Covy
         R_inv_sqrt = self.sym_sqrt_inv(R)
 
-        self.Compute_evaluation_metrics(Ens)  # RMSE
+        # Initial logging
+        self.log_metrics(
+            t=0,
+            ensemble=Ens,
+            truth=ground_truth[0] if ground_truth is not None else None,
+            observation=obs[0] if obs is not None else None,
+            trHK=np.nan,
+        )
 
-        # time_sequence = information related to time sequence like time, time_step, if a obs is available for the current time, etc.
+        # Time loop
         for t in time_sequence:
-            # Apply dynamix model transformation to every sample in Ensemble
-            Ens = dynamic_model(Ens, t - dt, dt)  # Like t-dt and dt
+            # Forecast
+            Ens = dynamic_model(Ens, t - dt, dt)
+
             if add_noise is not None:
-                # If the dynamic_model is designed deterinistacilly. If it is defined stochastically and take into account noise, remove line.
                 Ens = add_noise(Ens, dt)
 
+            # Analysis
             if obs[t] is not None:
-                current_obs = obs[t]
-
-                # Propagate obs infos in Ensemble
                 Ens = self.EnKF_update(
                     Ens,
-                    current_obs,
+                    obs[t],
                     R,
                     R_inv_sqrt,
                     observation_operator,
                 )
+                trHK = self.last_trHK
+            else:
+                trHK = np.nan
 
-                self.Compute_evaluation_metrics(Ens)  # RMSE
+            # Log everything (aligned)
+            self.log_metrics(
+                t=t,
+                ensemble=Ens,
+                truth=ground_truth[t] if ground_truth is not None else None,
+                observation=obs[t],
+                trHK=trHK,
+            )
 
+        self.runtime = time.time() - start_time
+
+        return Ens, self.metrics, self.runtime
+
+    # Logging (centralized)
+    def log_metrics(self, t, ensemble=None, truth=None, observation=None, trHK=np.nan):
+        self.metrics["time"].append(t)
+
+        compute_metrics(
+            self.metrics,
+            ensemble=ensemble,
+            truth=truth,
+            observation=observation,
+        )
+
+        self.metrics["trHK"].append(trHK)
+
+        if ensemble is not None:
+            self.trajectory.append(np.mean(ensemble, axis=0))
+
+    # Sampling
     def sample(self, CovX0):
         R = np.linalg.cholesky(CovX0)
-        D = np.random.randn(self.N, R.shape[0]) @ R.T
-        return D
+        return np.random.randn(self.N, R.shape[0]) @ R.T
 
+    # Matrix utilities
     def sym_sqrt_inv(self, R):
-        # Eigendecomposition
-        w, V = np.linalg.eigh(R)  # eigenvalues, eigenvectors
-        idx = np.argsort(w)[::-1]  # Sort descending
+        w, V = np.linalg.eigh(R)
+
+        idx = np.argsort(w)[::-1]
         w = w[idx]
         V = V[:, idx]
 
-        # Truncate small eigenvalues
         eps = 1e-8 * np.max(w)
         idx = w > eps
         w_r = w[idx]
         V_r = V[:, idx]
 
-        # Inverse sqrt of eigenvalues
         inv_sqrt_w = 1.0 / np.sqrt(w_r)
 
-        # Construct matrix
         return (V_r * inv_sqrt_w) @ V_r.T
 
+    # ETKF update
     def EnKF_update(self, Ens, current_obs, R, R_inv_sqrt, observation_operator):
-        """
-        Perform Ensemble Kalman Filter update if observation are given via Ensemble Transform Kalman Filter (ETKF).
-
-        x_t^(i)​=x_{t∣t−1}^(i)​+K(y_t^(i)​−H(x_{t∣t−1}^(i))​)
-        where K_t=P_tH^⊤(HP_tH^⊤+R)^{−1}; P_t = Model covariance at time t
-
-        In practice, we use the anomalies A where P = A^TA/(N-1).
-        Then, instead of updating each state variable directly, we update the ensemble in “ensemble space” (size N) using a linear transform.
-        """
-        # Seting up variables
-        N, Nx = Ens.shape  # Dimensionality
+        N, Nx = Ens.shape
         N1 = N - 1
 
-        Ens_mu = np.mean(Ens, 0)  # Ensemble mean
-        Ano = Ens - Ens_mu  # Ensemble anomalies
+        Ens_mu = np.mean(Ens, axis=0)
+        Ano = Ens - Ens_mu
 
         HEns = observation_operator(Ens)
-        HEns_mu = np.mean(HEns, 0)  # Observation ensemble mean
-        HAno = HEns - HEns_mu  # Observation ensemble anomalies
-        dy = current_obs - HEns_mu  # Mean "innovation"
+        HEns_mu = np.mean(HEns, axis=0)
+        HAno = HEns - HEns_mu
 
-        # Compute Pw (Cov(w|y)) and T (sqrt of Pw)
-        Y_tilde = HAno @ R_inv_sqrt  # Whitening
+        dy = current_obs - HEns_mu
+
+        Y_tilde = HAno @ R_inv_sqrt
         dy_tilde = dy @ R_inv_sqrt
 
-        S = Y_tilde / np.sqrt(N1)  # Scale anomalies so sample covariance is correct (1/(N-1))
+        S = Y_tilde / np.sqrt(N1)
 
-        V, s, _ = sla.svd(S, full_matrices=False)  # SVD
+        V, s, _ = sla.svd(S, full_matrices=False)
 
-        d = s**2 + 1  # Eigenvalues
+        d = s**2 + 1
 
-        # Ensemble-space covariance and transform matrix (ETKF)
         Pw = (V * (1.0 / d)) @ V.T
         T = (V * (1.0 / np.sqrt(d))) @ V.T
 
-        w = dy_tilde @ Y_tilde.T @ Pw  # Transform mean update coefficients in ensemble space
-        Ens = Ens_mu + w @ Ano + T @ Ano  # Update ensemble
+        w = dy_tilde @ Y_tilde.T @ Pw
 
-        trHK = np.sum((s**2 + 1) ** (-1.0) * s**2)
-        self.Compute_evaluation_metrics(trHK)  # Relative influence of observations
+        Ens = Ens_mu + w @ Ano + T @ Ano
+
+        # --- Diagnostic: degrees of freedom for signal ---
+        self.last_trHK = np.sum((s**2) / (s**2 + 1))
 
         return Ens
-
-    def Compute_evaluation_metrics(self, Ens, *args, **kwargs):
-        # Will probably be implemented in superclass?
-        return None

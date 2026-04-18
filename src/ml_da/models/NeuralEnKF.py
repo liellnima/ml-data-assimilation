@@ -3,21 +3,19 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from .EnKF import EnKF
+from ml_da.models.EnKF import EnKF
 
 
 class NeuralModel:
     def __init__(self, state_dim, lr=1e-3, device="cpu"):
         self.device = device
 
-        # Default settings from Neural EnKF
-        self.archi = ((24, 5), (37, 5))  # (channels, kernel)
+        self.archi = ((24, 5), (37, 5))
         self.use_bilin = True
         self.batchnorm = True
         self.epochs = 1
         self.batch_size = 256
 
-        # Build CNN
         layers = []
         in_channels = 1
 
@@ -28,18 +26,15 @@ class NeuralModel:
                 layers.append(nn.BatchNorm1d(out_ch))
 
             layers.append(nn.ReLU())
-
             in_channels = out_ch
 
         layers.append(nn.Conv1d(in_channels, 1, kernel_size=1))
 
         self.conv = nn.Sequential(*layers).to(device)
 
-        # Bilinear term
         if self.use_bilin:
             self.bilin = nn.Bilinear(state_dim, state_dim, state_dim).to(device)
 
-        # Optimizer
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.loss_fn = nn.MSELoss()
 
@@ -87,8 +82,6 @@ class NeuralModel:
 
 
 class HybridModel:
-    """Combines the dynamic model and NN."""
-
     def __init__(self, base_model, nn_model):
         self.base_model = base_model
         self.nn_model = nn_model
@@ -100,7 +93,6 @@ class HybridModel:
 
 
 def build_dataset(trajectory, base_model, time_sequence, dt):
-    """Converts the EnKF trajectory into a supervised learning dataset for the neural network."""
     X, Res = [], []
 
     for k in range(len(trajectory) - 1):
@@ -110,7 +102,7 @@ def build_dataset(trajectory, base_model, time_sequence, dt):
         model_pred = base_model(x_k, time_sequence[k], dt)
 
         X.append(x_k)
-        Res.append(x_k1 - model_pred)  # residual learning
+        Res.append(x_k1 - model_pred)
 
     return np.vstack(X), np.vstack(Res)
 
@@ -124,12 +116,10 @@ class NeuralEnKF:
         Covy,
         state_dim,
         dt,
-        N_ens=20,
+        N_ens=24,
         device="cpu",
     ):
-        # Create EnKF internally
-        self.enkf = EnKF()
-        self.enkf.N = N_ens
+        self.enkf = EnKF(N_ens)
 
         self.dynamic_model = dynamic_model
         self.observation_operator = observation_operator
@@ -137,30 +127,23 @@ class NeuralEnKF:
         self.Covy = Covy
         self.dt = dt
 
-        # Neural model
         self.nn_model = NeuralModel(state_dim, device=device)
 
-        self.metrics = []
+        # Outer loop metrics
+        self.training_metrics = []
 
-    def run(self, obs, time_sequence, n_iter):
+        # Full history
+        self.history = []
+
+    def run(self, obs, time_sequence, n_iter, ground_truth=None):
 
         for it in range(n_iter):
 
             hybrid_model = HybridModel(self.dynamic_model, self.nn_model)
 
-            trajectory = []
-
-            # Hook into EnKF
-            def store(Ens, *args, **kwargs):
-                trajectory.append(np.mean(Ens, axis=0))
-
-            self.enkf.Compute_evaluation_metrics = (
-                store  # Currently store trajectory, will fix it later to also keep track of rmse
-            )
-
-            # EnKF step
-            self.enkf.step(
-                ground_truth=None,
+            # Run EnKF
+            Ens, metrics, runtime = self.enkf.step(
+                ground_truth=ground_truth,
                 obs=obs,
                 CovX0=self.CovX0,
                 Covy=self.Covy,
@@ -170,7 +153,8 @@ class NeuralEnKF:
                 dt=self.dt,
             )
 
-            trajectory = np.array(trajectory)
+            # Extract trajectory
+            trajectory = np.array(self.enkf.trajectory)
 
             # Build dataset
             X, Res = build_dataset(
@@ -183,9 +167,18 @@ class NeuralEnKF:
             # Train NN
             self.nn_model.train_model(X, Res)
 
-            self.metrics.append(
+            # Store training metrics
+            self.training_metrics.append(
                 {
                     "iteration": it,
+                    "rmse_final": metrics["rmse"][-1],
+                    "spread_final": metrics["spread"][-1],
                     "dataset_size": len(X),
+                    "runtime": runtime,
                 }
             )
+
+            # Store full time-series metrics
+            self.history.append(metrics.copy())
+
+        return self.training_metrics, self.history

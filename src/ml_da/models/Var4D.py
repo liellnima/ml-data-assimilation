@@ -1,17 +1,20 @@
+import time
+
 import numpy as np
+
+from ml_da.experiments.metrics import compute_metrics, init_metrics
 
 
 class Var4D:
-    """
-    4D-Var.
+    """Incremental 4D-Var with Gauss–Newton Produces time-series metrics like EnKF."""
 
-    nIters: Number of iterations
-    tol: Convergence threshold/tolerance
-    """
+    def __init__(self, nIters, tol):
+        self.nIters = nIters
+        self.tol = tol
+        self.metrics = init_metrics()
+        self.runtime = None
 
-    nIters: int
-    tol: float
-
+    # Main step
     def step(
         self,
         ground_truth,
@@ -24,95 +27,108 @@ class Var4D:
         dynamic_jacobian,
         observation_operator,
         observation_jacobian,
-        add_noise=None,
-        dt=None,
-        noise=None,
     ):
-        """
-        dynamic_model : model function
-        dynamic_jacobian : model Jacobian            x -> dM/dx
-        observation_operator : observation operator
-        observation_jacobian : observation Jacobian      x -> dH/dx
-        B : background covariance
-        R : observation covariance
-        x_b : background state (estimate)
-        """
+        start_time = time.time()
 
-        # Control variable
         Nx = len(x_b)
         w = np.zeros(Nx)
 
-        B12 = np.linalg.cholesky(B)  # B^(1/2)
-        Rm12 = self.sym_sqrt_inv(R)  # R^(-1/2)
+        B12 = np.linalg.cholesky(B)
+        Rm12 = self.sym_sqrt_inv(R)
 
-        self.Compute_evaluation_metrics()
+        # Optimization loop
+        for _ in range(self.nIters):
 
-        for _ in range(self.nIter):
-
-            # Reconstruct initial state
             x = x_b + B12 @ w
-            X = B12.copy()  # Jacobian dx/dw
+            X = B12.copy()
 
-            # Accumulators
             grad = -w
-
             Y_list = []
             dy_list = []
 
-            # forward pass over time
             for k in time_sequence:
 
-                # Propagate state + Jacobian
                 M_k = dynamic_jacobian(x)
                 X = M_k @ X
                 x = dynamic_model(x)
 
-                # If observation exists
                 if obs[k] is not None:
-
                     y = obs[k]
 
-                    # Observation linearization
                     y_pred = observation_operator(x)
                     Y = observation_jacobian(x) @ X
 
-                    # Whitening
                     dy = Rm12 @ (y - y_pred)
                     Y = Rm12 @ Y
 
-                    # Store contributions
                     Y_list.append(Y)
                     dy_list.append(dy)
 
-                    # Gradient contribution
                     grad += Y.T @ dy
 
             if len(Y_list) == 0:
-                break  # no observations → nothing to do
+                break
 
             Y_all = np.vstack(Y_list)
-            np.concatenate(dy_list)
 
-            # SVD-based Gauss–Newton step
-            # Y_all = U S V^T
             U, s, Vt = np.linalg.svd(Y_all, full_matrices=False)
 
-            # Compute (Y^T Y + I)^-1 grad efficiently
-            # dw = V ( (V^T grad) / (s^2 + 1) )
             d = s**2 + 1.0
             dw = Vt.T @ ((Vt @ grad) / d)
 
-            # Update control
             w += dw
 
-            self.Compute_evaluation_metrics()
-
-            # Convergence check
             if np.linalg.norm(dw) < self.tol:
                 break
 
-        # Final state reconstruction
-        x_final = x_b + self.B12 @ w
+        # final trajectory
+        x0_opt = x_b + B12 @ w
 
-        self.Compute_evaluation_metrics()
-        return x_final
+        traj = self.forward_trajectory(x0_opt, time_sequence, dynamic_model)
+
+        # time-series metrics (like EnKF)
+        for t, x in enumerate(traj):
+
+            self.metrics["time"].append(t)
+
+            compute_metrics(
+                self.metrics,
+                estimate=x,
+                truth=ground_truth[t] if ground_truth is not None else None,
+                observation=obs[t] if obs is not None else None,
+            )
+
+            # No trHK in 4D-Var
+            self.metrics["trHK"].append(np.nan)
+
+        self.runtime = time.time() - start_time
+
+        return x0_opt, traj, self.metrics, self.runtime
+
+    # Forward trajectory
+    def forward_trajectory(self, x0, time_sequence, model):
+        traj = [x0]
+        x = x0.copy()
+
+        for _ in time_sequence:
+            x = model(x)
+            traj.append(x)
+
+        return traj
+
+    # Matrix utility
+    def sym_sqrt_inv(self, R):
+        w, V = np.linalg.eigh(R)
+
+        idx = np.argsort(w)[::-1]
+        w = w[idx]
+        V = V[:, idx]
+
+        eps = 1e-8 * np.max(w)
+        idx = w > eps
+        w_r = w[idx]
+        V_r = V[:, idx]
+
+        inv_sqrt_w = 1.0 / np.sqrt(w_r)
+
+        return (V_r * inv_sqrt_w) @ V_r.T
