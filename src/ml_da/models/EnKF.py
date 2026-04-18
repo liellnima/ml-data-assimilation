@@ -3,13 +3,17 @@ import time
 import numpy as np
 import scipy.linalg as sla
 
+from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.experiments.metrics import compute_metrics, init_metrics
+from ml_da.models.base_model import BaseAssimilationModel
+from ml_da.tools.config import DataCoreConfig, ModelConfig
 
 
-class EnKF:
+class EnKF(BaseAssimilationModel):
     """Ensemble Kalman Filter (ETKF formulation)"""
 
-    def __init__(self, N):
+    def __init__(self, N, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle):
+        super().__init__(model_cfg, data_cfg, data)
         self.N = N
         self.metrics = init_metrics()
         self.runtime = None
@@ -17,7 +21,7 @@ class EnKF:
         self.trajectory = []
 
     # Main step
-    def step(
+    def assimilate(
         self,
         ground_truth,
         obs,
@@ -33,30 +37,32 @@ class EnKF:
         start_time = time.time()
 
         # Initial ensemble
-        Ens = self.sample(CovX0)
+        Ens = self.sample(CovX0)  # self.dyn.inital_state
 
-        R = Covy
+        R = Covy  # self.R
         R_inv_sqrt = self.sym_sqrt_inv(R)
 
         # Initial logging
         self.log_metrics(
             t=0,
-            ensemble=Ens,
+            ensemble=Ens,  # self.dyn.initial_state
             truth=ground_truth[0] if ground_truth is not None else None,
             observation=obs[0] if obs is not None else None,
             trHK=np.nan,
         )
 
         # Time loop
-        for t in time_sequence:
+        for t in range(time_sequence - 1):
             # Forecast
             Ens = dynamic_model(Ens, t - dt, dt)
+            #
+            # Ens = self.dyn.step(state=list[np.ndarray])
 
             if add_noise is not None:
-                Ens = add_noise(Ens, dt)
+                Ens = add_noise(Ens, dt)  # don't need that
 
             # Analysis
-            if obs[t] is not None:
+            if obs[t] is not None:  # if self.obs_avail[t]
                 Ens = self.EnKF_update(
                     Ens,
                     obs[t],
@@ -70,10 +76,10 @@ class EnKF:
 
             # Log everything (aligned)
             self.log_metrics(
-                t=t,
+                t=t + 1,
                 ensemble=Ens,
-                truth=ground_truth[t] if ground_truth is not None else None,
-                observation=obs[t],
+                truth=ground_truth[t + 1] if ground_truth is not None else None,
+                observation=obs[t + 1],
                 trHK=trHK,
             )
 

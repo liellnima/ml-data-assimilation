@@ -2,6 +2,7 @@ import time
 
 import numpy as np
 
+from ml_da.data.transformations import add_noise  # noqa: F401
 from ml_da.experiments.metrics import compute_metrics, init_metrics
 
 

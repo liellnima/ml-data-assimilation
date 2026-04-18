@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from abc import ABC, abstractmethod
 
 import numpy as np
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 # TODO adapt this later on, so we can access data_cfg directly in the AssimDataBundle
 
 
-class BaseAssimilationModel:
+class BaseAssimilationModel(ABC):
     """Base Model Class for both traditional and ML-based data assimilation methods."""
 
     def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle) -> None:
@@ -36,9 +37,17 @@ class BaseAssimilationModel:
         self.obs_cfg = data_cfg.observer
 
         # get data
-        self.ground_truth = data.truth
-        self.observations = data.observations
-        self.dyn_data = data.dynamical_model
+        self.timesteps: int = data_cfg.timesteps  # 1000
+        # timestep 0 --> initial states
+
+        # state
+        # self.dyn.step()
+        # new_state --> compare to ground truth at time 1
+
+        # TODO numpy
+        self.ground_truth = data.truth  # np.arrays (1000, 36,) first time, than var
+        self.observations = data.observations  # 50% np.arrays (1000 bool, max 18,)
+        self.dyn_data = data.dynamical_model  # list[np.array(1000, 36)] # first time, than var
         # self.metadata = data.metadata # we should get configs from that one
 
         # covariance R: observation error
@@ -49,12 +58,24 @@ class BaseAssimilationModel:
 
         # TODO Jacobian of observations for whole time series
         # because we assume stationary_observer=True --> raise not implemented error if false
-        # self.obs_linear = self.get_obs_linear()
+        # self.obs_linear = self.get_obs_linear() # constant matrix #np.ndarray
         # TODO observation operator (somehow)
-        # self.obs_operator = self.get_obs_operator()
+        # self.obs_operator = self.get_obs_operator() # is okay if it works the same way
 
         # this can be executed with .step and
         self.dyn = self.init_dynamical_model()
+        self.dyn.initial_linear
+        self.dyn.initial_state  # list[(36,)]
+
+        # t 1
+        self.dyn.state  # can be ensemble
+        self.dyn.linear
+
+        self.dyn.step()
+
+        self.dyn.state  # t 501
+        self.dyn.linear  # 2
+
         # TODO write documentation for single steps
 
         # TODO add explanations how to deal with the ensemble
@@ -115,7 +136,7 @@ class BaseAssimilationModel:
     def get_obs_linear(self):
         """Gets Jacobian of observations."""
 
-    # @abstractmethod
+    @abstractmethod
     def assimilate(self):
         """Implement the assimilation."""
 
