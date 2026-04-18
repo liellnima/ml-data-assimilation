@@ -10,6 +10,25 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+# MOVE THIS INTO DA BASE MODEL
+# Return the noise covariance Q
+# --> different ways to do this, for now:
+# return based on the DataBundle model noise
+# LATER: estimate this from the model, assume some type of noise,
+# that's not necessarily true
+
+# Return initial covariance P0
+# --> different ways to do this, for now
+# return based on the DataBundle init model noise (perturbations)
+# LATER: estimate this from an ensemble or via climatology / tune it
+
+# Return observation covariance R
+
+
+# Get Jacobian of observations
+# --> get it directly from loaded observations (and its metadata)
+#  depends on if stationary_observerser=True or false
+# same for all obs if stationary, different if non-stationary
 class BaseAssimilationModel(ABC):
     """Base Model Class for both traditional and ML-based data assimilation methods."""
 

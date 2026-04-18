@@ -10,34 +10,43 @@ from ml_da.tools.io import save_yaml
 logger = logging.getLogger(__name__)
 
 # NEXT
-# TODO Git commit all changes
-# TODO handle git conflicts
+# TODO Debug
+# TODO Git commit
+# TODO make sure to add the right files to pyproject.toml to ignore import problems
+# TODO Create all datasets
 
 # SOON
-# TODO Extend to have ensembles of models
-# TODO Training Data vs Assimilation Data
 # TODO Methods-Data interface (BaseModel)
-# TODO DataBundle: make sure we can access covariance
-# TODO DataBundle: make sure we can access Jacobian
-# TODO DataBundle: make sure we have the syn numerical model (runnable!)
-# TODO How to handle the syn numerical models in the whole framework
-# TODO: Figure out how to sync numpy vs torch usage of our data bundle
+# TODO Load data
+# TODO Get Q
+# TODO Get R
+# TODO Get Jacobian of observations
+# TODO Load the numerical model and run it step by step
 
 # LATER
+# TODO Get each single model running once, one one dataset?
+# TODO Experiment Setup: Code
+# TODO Experiment setup: wandb
+
+# Back Prio I
 # TODO Tests: ... tests ...
-# TODO Seeds: think carefully about where to put seeds at some point
+# TODO Training Data vs Assimilation Data
+# TODO Seeds: think carefully where which seeds are going
+# TODO: Figure out how to sync numpy vs torch usage of our data bundle
 # TODO Important: I am  installing all the dependencies of dabench atm and it causes conflicts.
 # I have quick-fixed it for now, but we need to fix that issue later on.
 # Option A: Install dabench without dependencies, install only the ones I need along the way (might fail though)
 # Option B: Make a fork, adapt the code base and install that one
 # Option C: Copy the relevant code over from their code base to our benchmark repo and maintain it there
 # Along the way: Build a wrapper around the dabench code I am using
+# TODO along the way: align the langauge between system and dynamical model code. inconsistent atm
 
-# BACK
+# BACK Prio II
 # TODO Make PR to lab template (move __init__ to right spot for the Paths / DIRs)
 # TODO error_params instead of specific error_sd --> needs re-designing though - small steps to improvement make more sense
 # TODO figure out how to organize the run_dir best (probably we know once we run experiments)
 # TODO overwrite param is not implemented at the moment for data generation
+# TODO what if people want to generate a single dataset?
 
 
 def run_experiment(cfg: ExperimentConfig, stage: list[str], run_dir: Path):

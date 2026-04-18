@@ -28,6 +28,7 @@ Other:
 
 - [] Separate between training and assimilation data
 - [] Provide Covariance + Jacobian
+- [] Provide model object
 - [] Provide Model Ensembles
 
 ## Task Setup
