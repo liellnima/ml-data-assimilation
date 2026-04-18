@@ -4,16 +4,14 @@ import logging
 from pathlib import Path
 
 from ml_da.data.generate import generate_datasets
+from ml_da.models.run import run_model
 from ml_da.tools.config import ExperimentConfig
 from ml_da.tools.io import save_yaml
 
 logger = logging.getLogger(__name__)
 
 # NEXT
-# TODO Debug
-# TODO Git commit
-# TODO make sure to add the right files to pyproject.toml to ignore import problems
-# TODO Create all datasets
+# TODO prepare run-model stage
 
 # SOON
 # TODO Methods-Data interface (BaseModel)
@@ -73,9 +71,15 @@ def run_experiment(cfg: ExperimentConfig, stage: list[str], run_dir: Path):
 
     # Runs data assimilation and ML models
     if "run" in stage:
-        logger.info("Loading data")
         logger.info("Running model")
-        raise NotImplementedError()
+        results_path = run_model(
+            data_id=cfg.run_model.data_id,
+            model=cfg.run_model.model,
+        )
+
+        # store the paths where the results are stored in the run directory
+        results_path_str = str(results_path)
+        save_yaml(results_path_str, run_dir / "results_paths.yaml")
 
     # Compares results against ground truth
     if "evaluate" in stage:
