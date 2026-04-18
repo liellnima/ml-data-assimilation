@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-import dabench as dab
 import xarray as xr
 
 from ml_da.data.systems.base_system import System
@@ -10,8 +9,13 @@ from ml_da.tools.config import SystemConfig
 from ml_da.tools.registry import system
 from ml_da.tools.utils import str_join_ls
 
+# fmt: off
 for lib in ["jax", "jaxlib"]:
     logging.getLogger(lib).setLevel(logging.WARNING)
+# isort: split
+import dabench as dab  # noqa: E402, F401
+
+# fmt: on
 
 
 logger = logging.getLogger(__name__)

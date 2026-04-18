@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 
-import dabench as dab
 import xarray as xr
 
 from ml_da.data.observers.base_observer import Observer
@@ -10,10 +9,13 @@ from ml_da.tools.config import ObserverConfig
 from ml_da.tools.registry import observer
 from ml_da.tools.utils import str_join_ls
 
-# I have this in the setup logger as well for outside packages,
-# but need to block it here already because jax is printing on debug level during imports
+# fmt: off
 for lib in ["jax", "jaxlib"]:
     logging.getLogger(lib).setLevel(logging.WARNING)
+# isort: split
+import dabench as dab  # noqa: E402, F401
+
+# fmt: on
 
 
 logger = logging.getLogger(__name__)

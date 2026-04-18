@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import xarray as xr
 
+import ml_da.data.systems  # noqa: F401
 from ml_da.data.dynamical_models.base_dynamical_model import DynamicalModel
 from ml_da.data.transformations import add_noise
 from ml_da.tools.config import DynamicalModelConfig, SystemConfig
@@ -10,9 +11,6 @@ from ml_da.tools.registry import SYSTEM_REGISTRY, dynamical_model
 from ml_da.tools.utils import str_join_ls
 
 logger = logging.getLogger(__name__)
-
-
-# import all systems
 
 
 @dynamical_model
