@@ -12,9 +12,8 @@ from ml_da.tools.config import DataCoreConfig, ModelConfig
 class EnKF(BaseAssimilationModel):
     """Ensemble Kalman Filter (ETKF formulation)"""
 
-    def __init__(self, N, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle):
+    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle):
         super().__init__(model_cfg, data_cfg, data)
-        self.N = N
         self.metrics = init_metrics()
         self.runtime = None
         self.last_trHK = np.nan  # diagnostic storage
@@ -23,65 +22,41 @@ class EnKF(BaseAssimilationModel):
     # Main step
     def assimilate(
         self,
-        ground_truth,
-        obs,
-        CovX0,
-        Covy,
-        time_sequence,
-        dynamic_model,
-        observation_operator,
-        add_noise=None,
-        dt=None,
     ):
         self.trajectory = []
         start_time = time.time()
 
         # Initial ensemble
-        Ens = self.sample(CovX0)  # self.dyn.inital_state
+        Ens = self.dyn.inital_state
 
-        R = Covy  # self.R
-        R_inv_sqrt = self.sym_sqrt_inv(R)
+        R_inv_sqrt = self.sym_sqrt_inv(self.R)
 
-        # Initial logging
-        self.log_metrics(
-            t=0,
-            ensemble=Ens,  # self.dyn.initial_state
-            truth=ground_truth[0] if ground_truth is not None else None,
-            observation=obs[0] if obs is not None else None,
-            trHK=np.nan,
-        )
+        trHK = np.nan
 
         # Time loop
-        for t in range(time_sequence - 1):
-            # Forecast
-            Ens = dynamic_model(Ens, t - dt, dt)
-            #
-            # Ens = self.dyn.step(state=list[np.ndarray])
+        for t in range(self.timesteps - 1):
+            self.log_metrics(
+                t=t,
+                ensemble=Ens,
+                truth=self.ground_truth[t] if self.ground_truth is not None else None,
+                observation=self.obs_np[t],
+                trHK=trHK,
+            )
 
-            if add_noise is not None:
-                Ens = add_noise(Ens, dt)  # don't need that
+            # Forecast
+            Ens = self.dyn.step(state=Ens)
 
             # Analysis
-            if obs[t] is not None:  # if self.obs_avail[t]
+            if not (np.isnan(self.obs_np[t]).all()):
                 Ens = self.EnKF_update(
                     Ens,
-                    obs[t],
-                    R,
+                    self.obs_np,
                     R_inv_sqrt,
-                    observation_operator,
+                    self.H,
                 )
                 trHK = self.last_trHK
             else:
                 trHK = np.nan
-
-            # Log everything (aligned)
-            self.log_metrics(
-                t=t + 1,
-                ensemble=Ens,
-                truth=ground_truth[t + 1] if ground_truth is not None else None,
-                observation=obs[t + 1],
-                trHK=trHK,
-            )
 
         self.runtime = time.time() - start_time
 
@@ -103,11 +78,6 @@ class EnKF(BaseAssimilationModel):
         if ensemble is not None:
             self.trajectory.append(np.mean(ensemble, axis=0))
 
-    # Sampling
-    def sample(self, CovX0):
-        R = np.linalg.cholesky(CovX0)
-        return np.random.randn(self.N, R.shape[0]) @ R.T
-
     # Matrix utilities
     def sym_sqrt_inv(self, R):
         w, V = np.linalg.eigh(R)
@@ -126,14 +96,14 @@ class EnKF(BaseAssimilationModel):
         return (V_r * inv_sqrt_w) @ V_r.T
 
     # ETKF update
-    def EnKF_update(self, Ens, current_obs, R, R_inv_sqrt, observation_operator):
+    def EnKF_update(self, Ens, current_obs, R_inv_sqrt, observation_operator):
         N, Nx = Ens.shape
         N1 = N - 1
 
         Ens_mu = np.mean(Ens, axis=0)
         Ano = Ens - Ens_mu
 
-        HEns = observation_operator(Ens)
+        HEns = Ens @ observation_operator.T
         HEns_mu = np.mean(HEns, axis=0)
         HAno = HEns - HEns_mu
 
