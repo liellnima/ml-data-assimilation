@@ -34,19 +34,21 @@ def run_model(data_id: str, model_cfg: ModelConfig) -> Path:
 
     # create the model
     # TODO make a registry and handle it via that
+    logger.info(f"Creating model {model_cfg.name}")
     my_model = DA_METHOD_REGISTRY[model_cfg.name](
         model_cfg=model_cfg,
         data_cfg=data_cfg,
         data=data,
     )
-
-    print(my_model)
-    print("Created the model!")
-    exit(0)
     # LATER: train the model if necessary
 
     # run the model
+    logger.info(f"Running the model {model_cfg.name}...")
     metrics_dict, run_time = my_model.assimilate()
+
+    logger.info("... finished!")
+
+    logger.info("Saving results")
 
     # save the results
     results_path = OUTPUT_DIR / "results" / data_path.parts[-1] / f"{model_cfg.name}.yaml"

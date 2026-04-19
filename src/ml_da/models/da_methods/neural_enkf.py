@@ -124,10 +124,9 @@ class NeuralEnKF(BaseAssimilationModel):
         data: AssimDataBundle,
     ):
         super().__init__(model_cfg, data_cfg, data)
+        self.nn_model = NeuralModel(self.system_dim)
         self.hybrid_model = HybridModel(self.dyn.step, self.nn_model)
         self.enkf = EnKF(model_cfg, data_cfg, data)
-
-        self.nn_model = NeuralModel(self.system_dim)
 
         self.metrics = init_metrics()
 

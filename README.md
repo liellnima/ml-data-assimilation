@@ -78,5 +78,5 @@ You are now ready to start development!
    typer src/ml_da/cli.py run model
 
    # you can also provide the exact model config and the dataset id
-   typer src/ml_da/cli.py run model -m configs/models/da/4dvar.yaml -d 002
+   typer src/ml_da/cli.py run model -m configs/models/da/var4d.yaml -d 002
    ```

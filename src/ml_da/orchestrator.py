@@ -74,7 +74,7 @@ def run_experiment(cfg: ExperimentConfig, stage: list[str], run_dir: Path):
         logger.info("Running model")
         results_path = run_model(
             data_id=cfg.run_model.data_id,
-            model=cfg.run_model.model,
+            model_cfg=cfg.run_model.model,
         )
 
         # store the paths where the results are stored in the run directory
