@@ -105,11 +105,28 @@ class HybridModel:
         self.base_model = base_model
         self.nn_model = nn_model
         self.correction_scale = 0.1  # TODO tune this parameters
+        self.max_corr_norm = 5.0  # clip to prevent exploding values
 
     def step(self, state):
         base = np.asarray(self.base_model(state))
         correction = self.nn_model.predict(state)
-        return base + self.correction_scale * correction
+
+        corr_norm = np.linalg.norm(correction, axis=1, keepdims=True)
+        scale = np.minimum(1.0, self.max_corr_norm / (corr_norm + 1e-12))
+        correction = correction * scale
+
+        if not np.isfinite(base).all():
+            raise ValueError("HybridModel.step: base model produced NaN/inf")
+
+        if not np.isfinite(correction).all():
+            raise ValueError("HybridModel.step: NN correction produced NaN/inf")
+
+        out = base + self.correction_scale * correction
+
+        if not np.isfinite(out).all():
+            raise ValueError("HybridModel.step: hybrid forecast produced NaN/inf")
+
+        return out
 
 
 def build_dataset(trajectory, base_model):

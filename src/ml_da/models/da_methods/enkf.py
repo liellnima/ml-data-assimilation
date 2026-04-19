@@ -140,6 +140,10 @@ class EnKF(BaseAssimilationModel):
     def EnKF_update(self, Ens, current_obs, R_inv_sqrt, observation_operator):
 
         Ens = np.stack(Ens)
+
+        if not np.isfinite(Ens).all():
+            raise ValueError("EnKF_update: Ens contains NaN/inf")
+
         N, Nx = Ens.shape
         N1 = N - 1
 
@@ -160,6 +164,9 @@ class EnKF(BaseAssimilationModel):
         dy_tilde = dy @ R_inv_sqrt
 
         S = Y_tilde / np.sqrt(N1)
+
+        if not np.isfinite(Ens).all():
+            raise ValueError("EnKF_update: Ens contains NaN/inf")
 
         # V, s, _ = sla.svd(S, full_matrices=False)
         U, s, _ = sla.svd(S, full_matrices=False)
