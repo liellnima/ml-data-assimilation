@@ -39,13 +39,16 @@ def compute_metrics(metrics, estimate=None, truth=None, observation=None, ensemb
     metrics["mae"].append(mae)
     metrics["bias"].append(bias)
 
-    # Observation error
-    if state is not None and observation is not None:
-        obs_err = np.sqrt(np.mean((observation - state) ** 2))
-    else:
-        obs_err = np.nan
+    # # Observation error
+    # TODO needs to work when obs have different shape
+    # if state is not None and observation is not None:
+    #     print(observation)
+    #     print(state)
+    #     obs_err = np.sqrt(np.mean((observation - state) ** 2))
+    # else:
+    #     obs_err = np.nan
 
-    metrics["obs_error"].append(obs_err)
+    # metrics["obs_error"].append(obs_err)
 
     # Ensemble metrics
     if ensemble is not None:

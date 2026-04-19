@@ -46,7 +46,7 @@ def run_model(data_id: str, model_cfg: ModelConfig) -> Path:
     logger.info(f"Running the model {model_cfg.name}...")
     metrics_dict, run_time = my_model.assimilate()
 
-    print(metrics_dict)
+    # print(metrics_dict)
 
     logger.info("... finished!")
 
