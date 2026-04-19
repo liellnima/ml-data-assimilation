@@ -2,40 +2,35 @@ import time
 
 import numpy as np
 
+from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.data.transformations import add_noise  # noqa: F401
 from ml_da.experiments.metrics import compute_metrics, init_metrics
+from ml_da.models.base_model import BaseAssimilationModel
+from ml_da.tools.config import DataCoreConfig, ModelConfig
 
 
-class Var4D:
+class Var4D(BaseAssimilationModel):
     """Incremental 4D-Var with Gauss–Newton Produces time-series metrics like EnKF."""
 
-    def __init__(self, nIters, tol):
+    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, nIters=10, tol=1e-6):
+        super().__init__(model_cfg, data_cfg, data)
         self.nIters = nIters
         self.tol = tol
         self.metrics = init_metrics()
         self.runtime = None
 
     # Main step
-    def step(
+    def assimilate(
         self,
-        ground_truth,
-        x_b,
-        obs,
-        B,
-        R,
-        time_sequence,
-        dynamic_model,
-        dynamic_jacobian,
-        observation_operator,
-        observation_jacobian,
     ):
         start_time = time.time()
 
+        x_b = self.dyn.initial_state
         Nx = len(x_b)
         w = np.zeros(Nx)
 
-        B12 = np.linalg.cholesky(B)
-        Rm12 = self.sym_sqrt_inv(R)
+        B12 = np.linalg.cholesky(self.Q)
+        Rm12 = self.sym_sqrt_inv(self.R)
 
         # Optimization loop
         for _ in range(self.nIters):
@@ -47,17 +42,15 @@ class Var4D:
             Y_list = []
             dy_list = []
 
-            for k in time_sequence:
-
-                M_k = dynamic_jacobian(x)
+            for k in range(self.timesteps - 1):
+                x, M_k = self.dyn.step(state=x)
                 X = M_k @ X
-                x = dynamic_model(x)
 
-                if obs[k] is not None:
-                    y = obs[k]
+                if not (np.isnan(self.obs_np[k]).all()):
+                    y = self.obs_np[k]
 
-                    y_pred = observation_operator(x)
-                    Y = observation_jacobian(x) @ X
+                    y_pred = self.H @ x
+                    Y = self.H @ x
 
                     dy = Rm12 @ (y - y_pred)
                     Y = Rm12 @ Y
@@ -85,7 +78,7 @@ class Var4D:
         # final trajectory
         x0_opt = x_b + B12 @ w
 
-        traj = self.forward_trajectory(x0_opt, time_sequence, dynamic_model)
+        traj = self.forward_trajectory(x0_opt)
 
         # time-series metrics (like EnKF)
         for t, x in enumerate(traj):
@@ -95,8 +88,8 @@ class Var4D:
             compute_metrics(
                 self.metrics,
                 estimate=x,
-                truth=ground_truth[t] if ground_truth is not None else None,
-                observation=obs[t] if obs is not None else None,
+                truth=self.ground_truth[t] if self.ground_truth is not None else None,
+                observation=self.obs_np[t] if self.observations is not None else None,
             )
 
             # No trHK in 4D-Var

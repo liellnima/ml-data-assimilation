@@ -3,7 +3,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+from ml_da.data.dataclasses import AssimDataBundle
+from ml_da.models.base_model import BaseAssimilationModel
 from ml_da.models.EnKF import EnKF
+from ml_da.tools.config import DataCoreConfig, ModelConfig
 
 
 class NeuralModel:
@@ -87,19 +90,19 @@ class HybridModel:
         self.nn_model = nn_model
 
     def __call__(self, Ens, t, dt):
-        base = self.base_model(Ens, t, dt)
+        base = self.base_model(Ens)
         correction = self.nn_model.predict(Ens)
         return base + correction
 
 
-def build_dataset(trajectory, base_model, time_sequence, dt):
+def build_dataset(trajectory, base_model, dt):
     X, Res = [], []
 
     for k in range(len(trajectory) - 1):
         x_k = trajectory[k]
         x_k1 = trajectory[k + 1]
 
-        model_pred = base_model(x_k, time_sequence[k], dt)
+        model_pred = base_model(x_k)
 
         X.append(x_k)
         Res.append(x_k1 - model_pred)
@@ -107,25 +110,12 @@ def build_dataset(trajectory, base_model, time_sequence, dt):
     return np.vstack(X), np.vstack(Res)
 
 
-class NeuralEnKF:
+class NeuralEnKF(BaseAssimilationModel):
     def __init__(
-        self,
-        dynamic_model,
-        observation_operator,
-        CovX0,
-        Covy,
-        state_dim,
-        dt,
-        N_ens=24,
-        device="cpu",
+        self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, state_dim=36, device="cpu"
     ):
-        self.enkf = EnKF(N_ens)
-
-        self.dynamic_model = dynamic_model
-        self.observation_operator = observation_operator
-        self.CovX0 = CovX0
-        self.Covy = Covy
-        self.dt = dt
+        super().__init__(model_cfg, data_cfg, data)
+        self.enkf = EnKF(model_cfg, data_cfg, data)
 
         self.nn_model = NeuralModel(state_dim, device=device)
 
@@ -135,23 +125,14 @@ class NeuralEnKF:
         # Full history
         self.history = []
 
-    def run(self, obs, time_sequence, n_iter, ground_truth=None):
+    def assimilate(self, n_iter=5):
 
         for it in range(n_iter):
 
-            hybrid_model = HybridModel(self.dynamic_model, self.nn_model)
+            HybridModel(self.dyn.step, self.nn_model)
 
             # Run EnKF
-            Ens, metrics, runtime = self.enkf.step(
-                ground_truth=ground_truth,
-                obs=obs,
-                CovX0=self.CovX0,
-                Covy=self.Covy,
-                time_sequence=time_sequence,
-                dynamic_model=hybrid_model,
-                observation_operator=self.observation_operator,
-                dt=self.dt,
-            )
+            Ens, metrics, runtime = self.enkf.assimilate()
 
             # Extract trajectory
             trajectory = np.array(self.enkf.trajectory)
@@ -159,9 +140,7 @@ class NeuralEnKF:
             # Build dataset
             X, Res = build_dataset(
                 trajectory,
-                self.dynamic_model,
-                time_sequence,
-                self.dt,
+                self.dyn.step,
             )
 
             # Train NN
