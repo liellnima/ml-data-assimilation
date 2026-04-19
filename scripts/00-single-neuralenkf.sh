@@ -9,7 +9,7 @@
 cd "$SCRATCH/ml-data-assimilation"
 mkdir -p slurm_logs
 
-MODEL="configs/models/da/persistence.yaml"
+MODEL="configs/models/ml/neural_enkf.yaml"
 
 DATASET_ID="$1"
 
