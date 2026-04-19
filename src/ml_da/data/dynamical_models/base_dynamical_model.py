@@ -50,7 +50,7 @@ class DynamicalModel(ABC):
 
     @property
     def initial_linear(self) -> np.ndarray:
-        """Returns initial conditions of the model (ensemble)"""
+        """Returns initial linear of the model (ensemble)"""
         return self._linear_0
 
     @property
