@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
+from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -180,8 +181,12 @@ class BaseAssimilationModel(ABC):
         return R, Q, P0
 
     @abstractmethod
-    def assimilate(self):
-        """Implement the assimilation."""
+    def assimilate(self) -> tuple[dict[str, Any], float]:
+        """
+        Implement the assimilation.
+
+        Returns a dicionary of metrics and the running time.
+        """
 
     def compute_assimilation_metrics(self):
         """"""
