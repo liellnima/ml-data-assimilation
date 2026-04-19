@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import numpy as np
 
 from ml_da.data.dataclasses import AssimDataBundle
@@ -15,10 +17,12 @@ class Persistence(BaseAssimilationModel):
         super().__init__(model_cfg, data_cfg, data)
         self.metrics = init_metrics()
         self.trajectory = []
+        self.runtime = None
 
     def assimilate(
         self,
     ):
+        start_time = time.time()
         x = self.dyn.initial_state
 
         for t in range(self.timesteps - 1):
@@ -27,7 +31,9 @@ class Persistence(BaseAssimilationModel):
 
             x = self.dyn.step()
 
-        return x, self.metrics
+        self.runtime = time.time() - start_time
+
+        return self.metrics, self.runtime
 
     # Logging
     def log(self, t, x, ground_truth, obs):
@@ -55,10 +61,12 @@ class PersistenceEnsemble(BaseAssimilationModel):
         super().__init__(model_cfg, data_cfg, data)
         self.metrics = init_metrics()
         self.trajectory = []
+        self.runtime = None
 
-    def step(
+    def assimilate(
         self,
     ):
+        start_time = time.time()
         Ens = self.dyn.initial_state
 
         for t in range(self.timesteps - 1):
@@ -67,7 +75,9 @@ class PersistenceEnsemble(BaseAssimilationModel):
 
             Ens = self.dyn.step()
 
-        return Ens, self.metrics
+        self.runtime = time.time() - start_time
+
+        return self.metrics, self.runtime
 
     # Logging
     def log(self, t, Ens, ground_truth, obs):

@@ -97,7 +97,7 @@ class Var4D(BaseAssimilationModel):
 
         self.runtime = time.time() - start_time
 
-        return x0_opt, traj, self.metrics, self.runtime
+        return self.metrics, self.runtime
 
     # Forward trajectory
     def forward_trajectory(self, x0, time_sequence, model):
