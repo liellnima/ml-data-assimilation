@@ -5,10 +5,6 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --mem=16G
 #SBATCH --time=02:00:00
-#SBATCH --output=/network/scratch/<u>/<username>/ml-data-assimilation/slurm_logs/%x_%j.out
-#SBATCH --error=/network/scratch/<u>/<username>/ml-data-assimilation/slurm_logs/%x_%j.err
-
-set -euo pipefail
 
 cd "$SCRATCH/ml-data-assimilation"
 mkdir -p slurm_logs
