@@ -78,3 +78,9 @@ You are now ready to start development!
    ```
 
    You can also check out ``srcipts/`` to see how we run some of the models on the Mila cluster.
+
+## References
+We are building upon the following repos:
+- [DAPPER](https://github.com/nansencenter/DAPPER)
+- [dabench](https://github.com/StevePny/DataAssimBench)
+- [Rolnick Lab Template](https://github.com/RolnickLab/lab-uv-template)
