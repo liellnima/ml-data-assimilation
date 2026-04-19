@@ -1,3 +1,4 @@
+import logging
 import time
 
 import numpy as np
@@ -14,15 +15,17 @@ from ml_da.tools.registry import da_method
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
+logger = logging.getLogger(__name__)
+
 
 class NeuralModel:
     def __init__(self, state_dim, lr=1e-3):
 
         self.archi = ((24, 5), (37, 5))
         self.use_bilin = True
-        self.batchnorm = True
-        self.epochs = 1
-        self.batch_size = 256
+        self.batchnorm = False
+        self.epochs = 30
+        self.batch_size = 36
 
         layers = []
         in_channels = 1
@@ -63,15 +66,19 @@ class NeuralModel:
 
     def predict(self, x_np):
         self.conv.eval()
-        x = torch.tensor(x_np, dtype=torch.float32, device=device)
+        if self.use_bilin:
+            self.bilin.eval()
+        x = torch.tensor(np.array(x_np), dtype=torch.float32, device=device)
 
         with torch.no_grad():
             y = self.forward(x)
 
-        return y.cpu().numpy()
+        return y.detach().cpu().numpy()
 
     def train_model(self, X_np, Y_np):
         self.conv.train()
+        if self.use_bilin:
+            self.bilin.train()
 
         X = torch.tensor(X_np, dtype=torch.float32, device=device)
         Y = torch.tensor(Y_np, dtype=torch.float32, device=device)
@@ -79,7 +86,7 @@ class NeuralModel:
         dataset = torch.utils.data.TensorDataset(X, Y)
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
-        for _ in range(self.epochs):
+        for epoch in range(self.epochs):
             for xb, yb in loader:
                 pred = self.forward(xb)
                 loss = self.loss_fn(pred, yb)
@@ -88,31 +95,54 @@ class NeuralModel:
                 loss.backward()
                 self.optimizer.step()
 
+        with torch.no_grad():
+            test_corr = self.predict(X_np[:-1])
+        logger.info(f"Mean |correction| after training: {np.mean(np.abs(test_corr))}")
+
 
 class HybridModel:
     def __init__(self, base_model, nn_model):
         self.base_model = base_model
         self.nn_model = nn_model
+        self.correction_scale = 0.1  # TODO tune this parameters
 
     def step(self, state):
-        base = self.base_model(state)
+        base = np.asarray(self.base_model(state))
         correction = self.nn_model.predict(state)
-        return base + correction
+        return base + self.correction_scale * correction
 
 
 def build_dataset(trajectory, base_model):
     X, Res = [], []
 
     for k in range(len(trajectory) - 1):
-        x_k = trajectory[k]
-        x_k1 = trajectory[k + 1]
+        x_k = np.asarray(trajectory[k])
+        x_k1 = np.asarray(trajectory[k + 1])
 
-        model_pred = base_model(x_k)
+        model_pred = np.array(base_model(x_k))
 
         X.append(x_k)
         Res.append(x_k1 - model_pred)
 
-    return np.vstack(X), np.vstack(Res)
+    X = np.concatenate(X, axis=0)  # ((T-1)*N, state_dim)
+    Res = np.concatenate(Res, axis=0)  # ((T-1)*N, state_dim)
+
+    return X, Res
+
+
+def build_model_correction_dataset(forecast_trajectory, analysis_trajectory):
+    X, Res = [], []
+
+    for k in range(len(forecast_trajectory)):
+        x_f = np.asarray(forecast_trajectory[k])  # (N, d)
+        x_a = np.asarray(analysis_trajectory[k + 1])  # (N, d)
+
+        X.append(x_f)
+        Res.append(x_a - x_f)
+
+    X = np.concatenate(X, axis=0)
+    Res = np.concatenate(Res, axis=0)
+    return X, Res
 
 
 @da_method
@@ -132,30 +162,23 @@ class NeuralEnKF(BaseAssimilationModel):
 
         self.runtime = None
 
+    # TODO log forecast RMSE vs analysis RMSE separatetly
     def assimilate(self, n_iter=5):
 
+        metrics_per_iterations = {}
+
         start_time = time.time()
+
         for it in range(n_iter):
+            logger.info(f"Assimilation iteration: {it}")
             hybrid_model = HybridModel(self.dyn.step, self.nn_model)
-
             # Inject updated model into EnKF
-            self.enkf.dynamic_model = hybrid_model
-
+            self.enkf.dynamical_model = hybrid_model
             # Run EnKF
-            Ens, metrics, runtime = self.enkf.assimilate()
+            metrics, _ = self.enkf.assimilate()
+            self.enkf.metrics = init_metrics()
 
-            # time shared once
-            if len(self.metrics["time"]) == 0:
-                self.metrics["time"] = metrics["time"]
-
-            # append full time-series per iteration
-            self.metrics["rmse"].append(metrics["rmse"])
-            self.metrics["obs_error"].append(metrics["obs_error"])
-            self.metrics["mae"].append(metrics["mae"])
-            self.metrics["bias"].append(metrics["bias"])
-            self.metrics["spread"].append(metrics["spread"])
-            self.metrics["crps"].append(metrics["crps"])
-            self.metrics["trHK"].append(metrics["trHK"])
+            metrics_per_iterations[it] = metrics
 
             # Extract trajectory
             trajectory = np.array(self.enkf.trajectory)
@@ -165,10 +188,14 @@ class NeuralEnKF(BaseAssimilationModel):
                 trajectory,
                 self.dyn.step,
             )
+            # X, Res = build_model_correction_dataset(
+            #     self.enkf.forecast_trajectory,
+            #     self.enkf.analysis_trajectory,
+            # )
 
             # Train NN
             self.nn_model.train_model(X, Res)
 
         self.runtime = time.time() - start_time
 
-        return self.metrics, self.runtime
+        return metrics_per_iterations, self.runtime

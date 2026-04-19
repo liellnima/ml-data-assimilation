@@ -6,7 +6,7 @@ from pathlib import Path
 import ml_da.models.da_methods  # noqa: F401
 from ml_da import DATA_DIR, OUTPUT_DIR
 from ml_da.tools.config import ModelConfig, load_data_core_config
-from ml_da.tools.io import load_data_bundle, save_yaml
+from ml_da.tools.io import load_data_bundle, save_pickle
 from ml_da.tools.registry import (
     DA_METHOD_REGISTRY,
 )
@@ -46,17 +46,19 @@ def run_model(data_id: str, model_cfg: ModelConfig) -> Path:
     logger.info(f"Running the model {model_cfg.name}...")
     metrics_dict, run_time = my_model.assimilate()
 
+    print(metrics_dict)
+
     logger.info("... finished!")
 
     logger.info("Saving results")
 
     # save the results
-    results_path = OUTPUT_DIR / "results" / data_path.parts[-1] / f"{model_cfg.name}.yaml"
+    results_path = OUTPUT_DIR / "results" / data_path.parts[-1] / f"{model_cfg.name}.pkl"
     results_dict = {
         "metrics": metrics_dict,
         "run_time": run_time,
     }
-    save_yaml(results_dict, results_path)
+    save_pickle(results_dict, results_path)
 
     # return the path of the results
     return results_path

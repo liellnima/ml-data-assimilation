@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 
 import numpy as np
@@ -9,6 +10,8 @@ from ml_da.experiments.metrics import compute_metrics, init_metrics
 from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
 from ml_da.tools.registry import da_method
+
+logger = logging.getLogger(__name__)
 
 
 @da_method
@@ -29,9 +32,9 @@ class Persistence(BaseAssimilationModel):
 
         for t in range(self.timesteps - 1):
 
-            self.log(t, x, self.ground_truth, self.obs_np)
-
             x = self.dyn.step()
+
+            self.log(t + 1, x, self.ground_truth, self.obs_np)
 
         self.runtime = time.time() - start_time
 
@@ -72,11 +75,15 @@ class PersistenceEnsemble(BaseAssimilationModel):
         start_time = time.time()
         Ens = self.dyn.initial_state
 
-        for t in range(self.timesteps - 1):
+        self.log(0, Ens, self.ground_truth, self.obs_np)  # log once in the beginning
 
-            self.log(t, Ens, self.ground_truth, self.obs_np)
+        for t in range(self.timesteps - 1):
+            if t % 50 == 0:
+                logger.info(f"Assimilated {t} steps")
 
             Ens = self.dyn.step()
+
+            self.log(t + 1, Ens, self.ground_truth, self.obs_np)
 
         self.runtime = time.time() - start_time
 

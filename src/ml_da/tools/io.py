@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import pickle
 from pathlib import Path
 from typing import Any, List
 
@@ -13,6 +14,17 @@ from pydantic import BaseModel
 from ml_da.data.dataclasses import AssimDataBundle
 
 logger = logging.getLogger(__name__)
+
+
+def save_pickle(data: Any, path: Path) -> None:
+    with open(path, "wb") as f:
+        pickle.dump(data, f)
+
+
+def load_pickle(path: Path) -> Any:
+    with open(path, "rb") as f:
+        loaded_data = pickle.load(f)
+    return loaded_data
 
 
 def load_yaml(path: Path) -> dict[str, Any]:

@@ -36,7 +36,7 @@ class BaseAssimilationModel(ABC):
 
         # the basics
         self.name: str = model_cfg.name  # model name
-        self.timesteps: int = data_cfg.timesteps  # 1000
+        self.timesteps: int = 200  # data_cfg.timesteps  # 1000
         self.system_dim: int = self.sys_cfg.params["system_dim"]  # 36
 
         # some booleans
@@ -136,8 +136,9 @@ class BaseAssimilationModel(ABC):
         # overwrite ensemble size (as we always have the ensembles on file, even if the model only wants one)
         # we will still get the same output like the 1st ensemble
         # because the numpy random generators are pseudo-random, and deterministic in that sense
-        if self.requires_adjoint:
+        if self.requires_adjoint or (not self.requires_ensemble):
             self.dyn_cfg.ensemble_size = 1
+
         # re-create the model from configs (works because of seeds)
         # we ask here for returning the adjoint if desired
         dyn_model = DYNAMICAL_MODEL_REGISTRY[self.dyn_cfg.name](self.dyn_cfg, self.sys_cfg, self.requires_adjoint)

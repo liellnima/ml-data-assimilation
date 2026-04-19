@@ -135,8 +135,10 @@ class DynamicalModel(ABC):
         # return = self.run_model(states[0], n_steps, return_tlm)
 
         # ensemble case
-        if self.ensemble_size != len(states):
-            raise ValueError(f"Expected {self.ensemble_size} members but got {len(states)}.")
+        # TODO find a better solution in NeuralEnKF for single ensemble member runs
+        # instead of out commenting this
+        # if self.ensemble_size != len(states):
+        #     raise ValueError(f"Expected {self.ensemble_size} members but got {len(states)}.")
 
         # we are using threads here, since we have already started a process per dataset
         # each ensemble generation should now be a thread within a process
@@ -170,10 +172,6 @@ class DynamicalModel(ABC):
         This might be used by traditional data assimilation methods that update the state in between each numerical
         model step.
         """
-        if state is not None and self.return_tlm:
-            raise NotImplementedError(
-                "Cannot yet provide function updating of states, when we also need to return the Jacobian."
-            )
         # set the state of our model with the given state
         # default is that we use the current internal state (is automaticall updated)
         if state is not None:
@@ -213,9 +211,9 @@ class DynamicalModel(ABC):
 
         # TODO later: handle this whole self.return_tlm thingy differently...
         if self.return_tlm:
-            return noisy_state_xr, linear_xr
+            return self._state, self._linear
 
-        return noisy_state_xr
+        return self._state
 
     def generate_model_data(
         self,

@@ -1,3 +1,4 @@
+import logging
 import time
 
 import numpy as np
@@ -9,22 +10,43 @@ from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
 from ml_da.tools.registry import da_method
 
+logger = logging.getLogger(__name__)
+
 
 @da_method
 class Var4D(BaseAssimilationModel):
     """Incremental 4D-Var with Gauss–Newton Produces time-series metrics like EnKF."""
 
-    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, nIters=10, tol=1e-6):
+    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, nIters=5, tol=1e-6):
         super().__init__(model_cfg, data_cfg, data)
         self.nIters = nIters
         self.tol = tol
         self.metrics = init_metrics()
         self.runtime = None
 
+    def compute_trajectory_metrics(self, traj):
+        metrics = init_metrics()
+
+        for t, x in enumerate(traj):
+            metrics["time"].append(t)
+
+            compute_metrics(
+                metrics,
+                estimate=x,
+                truth=self.ground_truth[t] if self.ground_truth is not None else None,
+                observation=self.obs_np[t] if self.obs_np is not None else None,
+            )
+
+            metrics["trHK"].append(np.nan)
+
+        return metrics
+
     # Main step
     def assimilate(
         self,
     ):
+
+        metrics_per_iteration = {}
         start_time = time.time()
 
         # add noise to the prior to make it fair
@@ -38,11 +60,12 @@ class Var4D(BaseAssimilationModel):
         Nx = len(x_b)
         w = np.zeros(Nx)
 
-        B12 = np.linalg.cholesky(self.Q)
+        B12 = np.linalg.cholesky(self.P0)
         Rm12 = self.sym_sqrt_inv(self.R)
 
         # Optimization loop
-        for _ in range(self.nIters):
+        for iter_count in range(self.nIters):
+            logger.info(f"Var4D Iteration {iter_count}")
 
             x = x_b + B12 @ w
             X = B12.copy()
@@ -52,14 +75,16 @@ class Var4D(BaseAssimilationModel):
             dy_list = []
 
             for k in range(self.timesteps - 1):
+                if k % 100 == 0:
+                    logger.info(f"Timestep {k}")
                 x, M_k = self.dyn.step(state=x)
                 X = M_k @ X
 
-                if not (np.isnan(self.obs_np[k]).all()):
-                    y = self.obs_np[k]
+                if not (np.isnan(self.obs_np[k + 1]).all()):
+                    y = self.obs_np[k + 1]
 
                     y_pred = self.H @ x
-                    Y = self.H @ x
+                    Y = self.H @ X
 
                     dy = Rm12 @ (y - y_pred)
                     Y = Rm12 @ Y
@@ -80,6 +105,9 @@ class Var4D(BaseAssimilationModel):
             dw = Vt.T @ ((Vt @ grad) / d)
 
             w += dw
+            x0_current = x_b + B12 @ w
+            traj_current = self.forward_trajectory(x0_current)
+            metrics_per_iteration[iter_count] = self.compute_trajectory_metrics(traj_current)
 
             if np.linalg.norm(dw) < self.tol:
                 break
@@ -98,7 +126,7 @@ class Var4D(BaseAssimilationModel):
                 self.metrics,
                 estimate=x,
                 truth=self.ground_truth[t] if self.ground_truth is not None else None,
-                observation=self.obs_np[t] if self.observations is not None else None,
+                observation=self.obs_np[t] if self.obs_np is not None else None,
             )
 
             # No trHK in 4D-Var
@@ -106,15 +134,15 @@ class Var4D(BaseAssimilationModel):
 
         self.runtime = time.time() - start_time
 
-        return self.metrics, self.runtime
+        return metrics_per_iteration, self.runtime
 
     # Forward trajectory
-    def forward_trajectory(self, x0, time_sequence, model):
+    def forward_trajectory(self, x0):
         traj = [x0]
         x = x0.copy()
 
-        for _ in time_sequence:
-            x = model(x)
+        for _ in range(self.timesteps - 1):
+            x, linear = self.dyn.step(x)
             traj.append(x)
 
         return traj

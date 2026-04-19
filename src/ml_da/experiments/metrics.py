@@ -28,7 +28,7 @@ def compute_metrics(metrics, estimate=None, truth=None, observation=None, ensemb
         state = estimate
 
     # Core metrics
-    if state is not None and truth is not None:
+    if (state is not None) and (truth is not None):
         rmse = np.sqrt(np.mean((state - truth) ** 2))
         mae = np.mean(np.abs(state - truth))
         bias = np.mean(state - truth)
@@ -69,7 +69,9 @@ def compute_crps(ensemble, truth):
 
     term1 = np.mean(np.abs(ensemble - truth), axis=0)
 
-    diffs = np.abs(ensemble[:, None, :] - ensemble[None, :, :])
+    np_ensemble = np.stack(ensemble)  # (40, 36)
+
+    diffs = np.abs(np_ensemble[:, None, :] - np_ensemble[None, :, :])
     term2 = np.mean(diffs, axis=(0, 1)) / 2
 
     return np.mean(term1 - term2)
