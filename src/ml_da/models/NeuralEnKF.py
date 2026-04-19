@@ -1,9 +1,12 @@
+import time
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 from ml_da.data.dataclasses import AssimDataBundle
+from ml_da.experiments.metrics import init_metrics
 from ml_da.models.base_model import BaseAssimilationModel
 from ml_da.models.EnKF import EnKF
 from ml_da.tools.config import DataCoreConfig, ModelConfig
@@ -89,13 +92,13 @@ class HybridModel:
         self.base_model = base_model
         self.nn_model = nn_model
 
-    def __call__(self, Ens, t, dt):
+    def step(self, Ens):
         base = self.base_model(Ens)
         correction = self.nn_model.predict(Ens)
         return base + correction
 
 
-def build_dataset(trajectory, base_model, dt):
+def build_dataset(trajectory, base_model):
     X, Res = [], []
 
     for k in range(len(trajectory) - 1):
@@ -115,24 +118,39 @@ class NeuralEnKF(BaseAssimilationModel):
         self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, state_dim=36, device="cpu"
     ):
         super().__init__(model_cfg, data_cfg, data)
+        self.hybrid_model = HybridModel(self.dyn.step, self.nn_model)
         self.enkf = EnKF(model_cfg, data_cfg, data)
 
         self.nn_model = NeuralModel(state_dim, device=device)
 
-        # Outer loop metrics
-        self.training_metrics = []
+        self.metrics = init_metrics()
 
-        # Full history
-        self.history = []
+        self.runtime = None
 
     def assimilate(self, n_iter=5):
 
+        start_time = time.time()
         for it in range(n_iter):
+            hybrid_model = HybridModel(self.dyn.step, self.nn_model)
 
-            HybridModel(self.dyn.step, self.nn_model)
+            # Inject updated model into EnKF
+            self.enkf.dynamic_model = hybrid_model
 
             # Run EnKF
             Ens, metrics, runtime = self.enkf.assimilate()
+
+            # time shared once
+            if len(self.metrics["time"]) == 0:
+                self.metrics["time"] = metrics["time"]
+
+            # append full time-series per iteration
+            self.metrics["rmse"].append(metrics["rmse"])
+            self.metrics["obs_error"].append(metrics["obs_error"])
+            self.metrics["mae"].append(metrics["mae"])
+            self.metrics["bias"].append(metrics["bias"])
+            self.metrics["spread"].append(metrics["spread"])
+            self.metrics["crps"].append(metrics["crps"])
+            self.metrics["trHK"].append(metrics["trHK"])
 
             # Extract trajectory
             trajectory = np.array(self.enkf.trajectory)
@@ -146,18 +164,6 @@ class NeuralEnKF(BaseAssimilationModel):
             # Train NN
             self.nn_model.train_model(X, Res)
 
-            # Store training metrics
-            self.training_metrics.append(
-                {
-                    "iteration": it,
-                    "rmse_final": metrics["rmse"][-1],
-                    "spread_final": metrics["spread"][-1],
-                    "dataset_size": len(X),
-                    "runtime": runtime,
-                }
-            )
+        self.runtime = time.time() - start_time
 
-            # Store full time-series metrics
-            self.history.append(metrics.copy())
-
-        return self.training_metrics, self.history
+        return self.metrics, self.runtime

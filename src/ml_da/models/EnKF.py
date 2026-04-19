@@ -12,12 +12,16 @@ from ml_da.tools.config import DataCoreConfig, ModelConfig
 class EnKF(BaseAssimilationModel):
     """Ensemble Kalman Filter (ETKF formulation)"""
 
-    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle):
+    def __init__(self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, dynamical_model=None):
         super().__init__(model_cfg, data_cfg, data)
         self.metrics = init_metrics()
         self.runtime = None
         self.last_trHK = np.nan  # diagnostic storage
         self.trajectory = []
+        if dynamical_model is None:
+            self.dynamical_model = self.dyn
+        else:
+            self.dynamical_model = dynamical_model
 
     # Main step
     def assimilate(
@@ -60,7 +64,7 @@ class EnKF(BaseAssimilationModel):
 
         self.runtime = time.time() - start_time
 
-        return Ens, self.metrics, self.runtime
+        return self.metrics, self.runtime
 
     # Logging (centralized)
     def log_metrics(self, t, ensemble=None, truth=None, observation=None, trHK=np.nan):
