@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from ml_da import RUN_DIR
 from ml_da.tools.config import ExperimentConfig
 
@@ -17,11 +19,16 @@ def make_run_dir(cfg: ExperimentConfig) -> Path:
     Params:
         cfg (ExperimentConfig): the configs used to create the run dir
     """
+    # random number to make sure we are not clashing
+    rng = np.random.default_rng()
+    random_4_digit = rng.integers(low=1000, high=10000)
+
+    # relevant information
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_name = f"{cfg.experiment_name}_{timestamp}"
+    run_name = f"{cfg.experiment_name}_{timestamp}_{random_4_digit}"
     run_dir = RUN_DIR / run_name
 
-    if run_dir.exists() and not cfg.output.overwrite:
+    if run_dir.exists():
         raise FileExistsError(
             f"Run directory already exists: {run_dir}. " "Set output.overwrite=true or choose a different run_name."
         )
