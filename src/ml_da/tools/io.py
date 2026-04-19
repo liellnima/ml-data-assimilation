@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def save_pickle(data: Any, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "wb") as f:
         pickle.dump(data, f)
 
