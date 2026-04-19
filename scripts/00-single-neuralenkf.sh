@@ -5,6 +5,7 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --mem=16G
 #SBATCH --time=01:30:00
+#SBATCH --constraint=lovelace
 
 cd "$SCRATCH/ml-data-assimilation"
 mkdir -p slurm_logs
