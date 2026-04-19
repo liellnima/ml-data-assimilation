@@ -83,7 +83,8 @@ class BaseAssimilationModel(ABC):
         self.H: np.ndarray = self._get_linearized_observation_operator()  # constant matrix #np.ndarray
 
         # this can be executed with .step and
-        self.dyn = self._init_dynamical_model()
+        self.dyn = self._init_dynamical_model()  # this is an object you can call
+        # e.g.: self.dyn.step(state)
 
         # TODO write documentation for single steps
         # TODO add explanations how to deal with the ensemble
