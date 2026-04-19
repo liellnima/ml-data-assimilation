@@ -5,10 +5,12 @@ import scipy.linalg as sla
 
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.experiments.metrics import compute_metrics, init_metrics
-from ml_da.models.base_model import BaseAssimilationModel
+from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
+from ml_da.tools.registry import da_method
 
 
+@da_method
 class EnKF(BaseAssimilationModel):
     """Ensemble Kalman Filter (ETKF formulation)"""
 
@@ -21,7 +23,7 @@ class EnKF(BaseAssimilationModel):
         if dynamical_model is None:
             self.dynamical_model = self.dyn
         else:
-            self.dynamical_model = dynamical_model
+            self.dynamical_model = dynamical_model  # can be something else as long as it has a "step" func
 
     # Main step
     def assimilate(
@@ -48,7 +50,7 @@ class EnKF(BaseAssimilationModel):
             )
 
             # Forecast
-            Ens = self.dyn.step(state=Ens)
+            Ens = self.dynamical_model.step(state=Ens)
 
             # Analysis
             if not (np.isnan(self.obs_np[t]).all()):

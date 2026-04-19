@@ -5,10 +5,12 @@ import numpy as np
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.data.transformations import add_noise  # noqa: F401
 from ml_da.experiments.metrics import compute_metrics, init_metrics
-from ml_da.models.base_model import BaseAssimilationModel
+from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
+from ml_da.tools.registry import da_method
 
 
+@da_method
 class Var4D(BaseAssimilationModel):
     """Incremental 4D-Var with Gauss–Newton Produces time-series metrics like EnKF."""
 
@@ -25,7 +27,14 @@ class Var4D(BaseAssimilationModel):
     ):
         start_time = time.time()
 
-        x_b = self.dyn.initial_state
+        # add noise to the prior to make it fair
+        x_b = add_noise(
+            data=self.dyn.initial_state,
+            error_type="normal",
+            error_params={"loc": 0, "scale": 1.0},
+            only_positive=False,
+            seed=42,
+        )
         Nx = len(x_b)
         w = np.zeros(Nx)
 

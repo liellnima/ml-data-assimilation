@@ -1,4 +1,4 @@
-name: persistence
+name: Persistence
 requires_training: False
 requires_adjoint: False
 requires_ensemble: False

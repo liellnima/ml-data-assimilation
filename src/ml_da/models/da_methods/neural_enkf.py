@@ -7,14 +7,16 @@ import torch.optim as optim
 
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.experiments.metrics import init_metrics
-from ml_da.models.base_model import BaseAssimilationModel
-from ml_da.models.EnKF import EnKF
+from ml_da.models.da_methods.base_model import BaseAssimilationModel
+from ml_da.models.da_methods.enkf import EnKF
 from ml_da.tools.config import DataCoreConfig, ModelConfig
+from ml_da.tools.registry import da_method
+
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
 
 class NeuralModel:
-    def __init__(self, state_dim, lr=1e-3, device="cpu"):
-        self.device = device
+    def __init__(self, state_dim, lr=1e-3):
 
         self.archi = ((24, 5), (37, 5))
         self.use_bilin = True
@@ -61,7 +63,7 @@ class NeuralModel:
 
     def predict(self, x_np):
         self.conv.eval()
-        x = torch.tensor(x_np, dtype=torch.float32, device=self.device)
+        x = torch.tensor(x_np, dtype=torch.float32, device=device)
 
         with torch.no_grad():
             y = self.forward(x)
@@ -71,8 +73,8 @@ class NeuralModel:
     def train_model(self, X_np, Y_np):
         self.conv.train()
 
-        X = torch.tensor(X_np, dtype=torch.float32, device=self.device)
-        Y = torch.tensor(Y_np, dtype=torch.float32, device=self.device)
+        X = torch.tensor(X_np, dtype=torch.float32, device=device)
+        Y = torch.tensor(Y_np, dtype=torch.float32, device=device)
 
         dataset = torch.utils.data.TensorDataset(X, Y)
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
@@ -92,9 +94,9 @@ class HybridModel:
         self.base_model = base_model
         self.nn_model = nn_model
 
-    def step(self, Ens):
-        base = self.base_model(Ens)
-        correction = self.nn_model.predict(Ens)
+    def step(self, state):
+        base = self.base_model(state)
+        correction = self.nn_model.predict(state)
         return base + correction
 
 
@@ -113,15 +115,19 @@ def build_dataset(trajectory, base_model):
     return np.vstack(X), np.vstack(Res)
 
 
+@da_method
 class NeuralEnKF(BaseAssimilationModel):
     def __init__(
-        self, model_cfg: ModelConfig, data_cfg: DataCoreConfig, data: AssimDataBundle, state_dim=36, device="cpu"
+        self,
+        model_cfg: ModelConfig,
+        data_cfg: DataCoreConfig,
+        data: AssimDataBundle,
     ):
         super().__init__(model_cfg, data_cfg, data)
         self.hybrid_model = HybridModel(self.dyn.step, self.nn_model)
         self.enkf = EnKF(model_cfg, data_cfg, data)
 
-        self.nn_model = NeuralModel(state_dim, device=device)
+        self.nn_model = NeuralModel(self.system_dim)
 
         self.metrics = init_metrics()
 

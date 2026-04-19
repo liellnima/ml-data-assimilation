@@ -6,10 +6,12 @@ import numpy as np
 
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.experiments.metrics import compute_metrics, init_metrics
-from ml_da.models.base_model import BaseAssimilationModel
+from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
+from ml_da.tools.registry import da_method
 
 
+@da_method
 class Persistence(BaseAssimilationModel):
     """Persistence baseline (no update, no DA)."""
 
@@ -50,6 +52,7 @@ class Persistence(BaseAssimilationModel):
         self.metrics["trHK"].append(np.nan)
 
 
+@da_method
 class PersistenceEnsemble(BaseAssimilationModel):
     """
     Ensemble persistence (no analysis step).

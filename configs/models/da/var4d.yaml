@@ -1,4 +1,4 @@
-name: 4dvar
+name: Var4D
 requires_training: False
 requires_adjoint: True
 requires_ensemble: False
