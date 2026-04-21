@@ -1,4 +1,4 @@
-## ⚡ Quick Start
+## Quick Start
 
 These steps are for anyone cloning this project to set it up for development.
 
@@ -59,11 +59,7 @@ If you do not have uv installed yet, run `pip install uv` first.
 
 You are now ready to start development!
 
-## 📖 Project Usage
-
-\<INSERT_YOUR_INSTRUCTIONS_HERE>
-
-(e.g., How to run your main scripts, what the package does, basic examples)
+## Project Usage
 
 1. **Run Data Generation**
    ```bash
@@ -80,3 +76,11 @@ You are now ready to start development!
    # you can also provide the exact model config and the dataset id
    typer src/ml_da/cli.py run model -m configs/models/da/var4d.yaml -d 002
    ```
+
+   You can also check out ``srcipts/`` to see how we run some of the models on the Mila cluster.
+
+## References
+We are building upon the following repos:
+- [DAPPER](https://github.com/nansencenter/DAPPER)
+- [dabench](https://github.com/StevePny/DataAssimBench)
+- [Rolnick Lab Template](https://github.com/RolnickLab/lab-uv-template)
