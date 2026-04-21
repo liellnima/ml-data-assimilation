@@ -5,7 +5,7 @@ import numpy as np
 
 from ml_da.data.dataclasses import AssimDataBundle
 from ml_da.data.transformations import add_noise  # noqa: F401
-from ml_da.experiments.metrics import compute_metrics, init_metrics
+from ml_da.evaluation.metrics import compute_metrics, init_metrics
 from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.tools.config import DataCoreConfig, ModelConfig
 from ml_da.tools.registry import da_method

@@ -24,8 +24,11 @@ def plot_metrics(results, model_name=Literal["4D-Var", "EnKF", "Neural EnKF"]):
 
 
 def compare_models(results_dict):
-    """If we want to plot multiple methods for each metrics graph results_dict = { "EnKF": results_enkf, "Var-4D":
-    results_var, "NeuralEnKF": results_neural, }"""
+    """
+    If we want to plot multiple methods for each metrics graph results_dict = { "EnKF": results_enkf, "Var-4D":
+
+    results_var, "NeuralEnKF": results_neural, }
+    """
 
     # Get all metric names
     metric_names = list(next(iter(results_dict.values()))["metrics"].keys())

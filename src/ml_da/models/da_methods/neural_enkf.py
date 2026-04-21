@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ml_da.data.dataclasses import AssimDataBundle
-from ml_da.experiments.metrics import init_metrics
+from ml_da.evaluation.metrics import init_metrics
 from ml_da.models.da_methods.base_model import BaseAssimilationModel
 from ml_da.models.da_methods.enkf import EnKF
 from ml_da.tools.config import DataCoreConfig, ModelConfig
