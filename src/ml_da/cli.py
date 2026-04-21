@@ -58,7 +58,8 @@ def data_generation(
 def model(
     config: Path = typer.Option(default_cfg, "--config", "-c", exists=True, readable=True),
     model: Path = typer.Option(None, "--model", "-m", exists=True, readable=True),
-    data: str = typer.Option(None, "--data", "-d"),
+    dataset: str = typer.Option(None, "--data", "-d"),
+    id: str = typer.Option(None, "--data-id", "-i"),
     log_level: str = typer.Option("INFO", "--log-level"),
 ) -> None:
     """
@@ -68,11 +69,14 @@ def model(
     """
     override: dict[str, object] | None = None
 
-    if model is not None or data is not None:
+    if model is not None or dataset is not None or id is not None:
         model_override: dict[str, object] = {}
 
-        if data is not None:
-            model_override["data_id"] = data
+        if dataset is not None:
+            model_override["dataset_name"] = dataset
+
+        if id is not None:
+            model_override["data_id"] = id
 
         if model is not None:
             model_cfg_dict = load_yaml(model)

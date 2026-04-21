@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 def generate_single_dataset(
     data_cfg: DataCoreConfig,
+    name: str,
     id: int = 0,
 ) -> Path:
     """
@@ -29,7 +30,7 @@ def generate_single_dataset(
 
     Params:
         data_cfg (DataCoreConfig): The config containing all relevant params for the dataset
-        system_cfg (SystemConfig): The config containing all relevant params for the underlying system
+        name (str): name of the overall dataset
         id (int): Used to index the generation of multiple datasets. Must be unique.
     Returns:
         Path: Where the dataset has been stored. You can use load_data_bundle to load it.
@@ -46,7 +47,7 @@ def generate_single_dataset(
     data_bundle = data_generator.generate()
 
     # create path for this specific dataset
-    path = DATA_DIR / f"Dataset-{id:03}_{data_generator.get_id_name()}"
+    path = DATA_DIR / name / f"Dataset-{id:03}_{data_generator.get_id_name()}"
 
     # store the data and the configs
     save_data_bundle(data_bundle, path)
@@ -56,7 +57,7 @@ def generate_single_dataset(
     return path
 
 
-def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCoreConfig) -> list[Path]:
+def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCoreConfig, name: str) -> list[Path]:
     """
     IMPORTANT: This function can only be called from within a if __name__ == "__main__" block!
     Generates multiple datasets across lists of configs. This is trying to
@@ -65,6 +66,7 @@ def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCo
     Params:
         data_generator_cfg (GeneratorConfig): The params over which should be looped to create all possible datasets.
         data_core_cfg (DataCoreConfig): Default configs - anything not listed in the generator config, will use the default values of the data core configs.
+        name (str): Name the dataset is given, all datasets will be stored under data/name/
 
     Returns:
         list(Path): List of Paths where all the data has been stored.
@@ -73,7 +75,7 @@ def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCo
     all_cfg_combos = build_cfg_combos(data_generator_cfg, data_core_cfg)
 
     # test this on a single case
-    # generate_single_dataset(all_cfg_combos[0], id=999)
+    # generate_single_dataset(all_cfg_combos[0], name="test", id=999)
     # print("Got one dataset, go check it out :D")
     # exit(0)
 
@@ -86,7 +88,7 @@ def generate_datasets(data_generator_cfg: GeneratorConfig, data_core_cfg: DataCo
     with concurrent.futures.ProcessPoolExecutor(mp_context=ctx) as executor:
         # schedule all tasks and make sure we can track the different processes
         task_id_dict = {
-            executor.submit(generate_single_dataset, data_cfg, task_id): task_id
+            executor.submit(generate_single_dataset, data_cfg, name, task_id): task_id
             for task_id, (data_cfg) in enumerate(all_cfg_combos)
         }
 

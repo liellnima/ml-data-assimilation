@@ -73,6 +73,7 @@ class ModelConfig(BaseModel):
 
 
 class RunModelConfig(BaseModel):
+    dataset_name: str = "default"
     data_id: str = "999"
     model: ModelConfig = Field(default_factory=ModelConfig)
 

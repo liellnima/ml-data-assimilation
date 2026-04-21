@@ -16,11 +16,22 @@ logger = logging.getLogger(__name__)
 # TODO separate between training and assimilation data / separate that as running
 
 
-def run_model(data_id: str, model_cfg: ModelConfig) -> Path:
-    """Runs a single model on a single datasets."""
+def run_model(dataset_name: str, data_id: str, model_cfg: ModelConfig) -> Path:
+    """
+    Runs a single model on a single datasets.
+
+    Params:
+        dataset_name (str): Name of the overall dataset that should be used. (data / dataset_name / ...)
+        data_id (str): Which specific data package that should be run.
+        model_cfg (ModelConfig): The model config used to set up the model.
+
+    Returns:
+        Path: Where the results are stored.
+    """
     # load data
     # Future: can also be adapted to run several
-    data_path_matches = list(DATA_DIR.glob(f"*Dataset-{data_id}*"))
+    dataset_dir = DATA_DIR / dataset_name
+    data_path_matches = list(dataset_dir.glob(f"*Dataset-{data_id}*"))
 
     if len(data_path_matches) != 1:
         raise RuntimeError("IDs of Datasets were not unique. Expecting unique ids though.")
@@ -53,7 +64,7 @@ def run_model(data_id: str, model_cfg: ModelConfig) -> Path:
     logger.info("Saving results")
 
     # save the results
-    results_path = OUTPUT_DIR / "results" / data_path.parts[-1] / f"{model_cfg.name}.pkl"
+    results_path = OUTPUT_DIR / "results" / dataset_name / data_path.parts[-1] / f"{model_cfg.name}.pkl"
     results_dict = {
         "metrics": metrics_dict,
         "run_time": run_time,

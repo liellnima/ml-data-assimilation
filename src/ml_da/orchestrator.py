@@ -62,6 +62,7 @@ def run_experiment(cfg: ExperimentConfig, stage: list[str], run_dir: Path):
     if "generate" in stage:
         logger.info("Generating dataset")
         data_paths = generate_datasets(
+            name=cfg.experiment_name,
             data_generator_cfg=cfg.data.generator,
             data_core_cfg=cfg.data.core,
         )
@@ -73,6 +74,7 @@ def run_experiment(cfg: ExperimentConfig, stage: list[str], run_dir: Path):
     if "run" in stage:
         logger.info("Running model")
         results_path = run_model(
+            dataset_name=cfg.run_model.dataset_name,
             data_id=cfg.run_model.data_id,
             model_cfg=cfg.run_model.model,
         )
